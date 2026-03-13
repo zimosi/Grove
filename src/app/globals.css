@@ -1,0 +1,84 @@
+@import "tailwindcss";
+
+@theme {
+  /* Light gray-white palette */
+  --color-grove-bg: #f2f1ed;
+  --color-grove-panel: #fafaf8;
+  --color-grove-forest: #e8e6e1;
+  --color-grove-moss: #3d6b4a;
+  --color-grove-sage: #4a7c59;
+  --color-grove-text: #1c211e;
+  --color-grove-muted: #6b736e;
+  --color-grove-border: rgba(28, 33, 30, 0.08);
+  --color-grove-accent: #2d4a36;
+
+  --font-serif: "Georgia", "Times New Roman", serif;
+  --font-sans: "Inter", "SF Pro Text", system-ui, sans-serif;
+  --font-display: "Georgia", "Times New Roman", serif;
+
+  /* Custom spacing */
+  --spacing-13: 3.25rem;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+  background-color: var(--color-grove-bg);
+  color: var(--color-grove-text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Thin scrollbar — light theme */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(74, 124, 89, 0.25) transparent;
+}
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(74, 124, 89, 0.25);
+  border-radius: 2px;
+}
+
+/* Sidebar typography */
+.grove-step-label {
+  font-size: 0.625rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  font-weight: 500;
+  color: var(--color-grove-muted);
+}
+.grove-heading {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  color: var(--color-grove-text);
+  line-height: 1.2;
+}
+.grove-body {
+  color: var(--color-grove-muted);
+  line-height: 1.6;
+}
+
+/* Float animation for ambient particles */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px) scale(1);
+    opacity: 0.2;
+  }
+  50% {
+    transform: translateY(-12px) scale(1.4);
+    opacity: 0.5;
+  }
+}

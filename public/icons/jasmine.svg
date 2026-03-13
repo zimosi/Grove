@@ -1,0 +1,26 @@
+<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M9 38C12 32 16 26 20 20C24 14 28 9 32 5" stroke="#5a8a45" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M14 30C11 28.5 10 25 12 22C13 25 14 28 14 30Z" fill="#6a9a50"/>
+  <path d="M21 21C19 18.5 19 15 22 13C22 16 21.5 19 21 21Z" fill="#6a9a50"/>
+  <path d="M28 13C27 10.5 27.5 7.5 30 6C29.5 9 28.5 11.5 28 13Z" fill="#6a9a50"/>
+  <!-- Jasmine flower 1 -->
+  <circle cx="18" cy="20" r="5.5" fill="white" opacity="0.95"/>
+  <ellipse cx="18" cy="14.8" rx="1.8" ry="3.5" fill="white"/>
+  <ellipse cx="18" cy="25.2" rx="1.8" ry="3.5" fill="white"/>
+  <ellipse cx="12.8" cy="20" rx="3.5" ry="1.8" fill="white"/>
+  <ellipse cx="23.2" cy="20" rx="3.5" ry="1.8" fill="white"/>
+  <ellipse cx="13.9" cy="15.1" rx="1.8" ry="3.5" fill="white" transform="rotate(45 13.9 15.1)"/>
+  <ellipse cx="22.1" cy="24.9" rx="1.8" ry="3.5" fill="white" transform="rotate(45 22.1 24.9)"/>
+  <ellipse cx="22.1" cy="15.1" rx="1.8" ry="3.5" fill="white" transform="rotate(-45 22.1 15.1)"/>
+  <ellipse cx="13.9" cy="24.9" rx="1.8" ry="3.5" fill="white" transform="rotate(-45 13.9 24.9)"/>
+  <circle cx="18" cy="20" r="2.5" fill="#fffbe8"/>
+  <circle cx="18" cy="20" r="1.2" fill="#f0e080"/>
+  <!-- Jasmine flower 2 (smaller) -->
+  <circle cx="29" cy="9" r="4" fill="white" opacity="0.95"/>
+  <ellipse cx="29" cy="5.2" rx="1.4" ry="2.8" fill="white"/>
+  <ellipse cx="29" cy="12.8" rx="1.4" ry="2.8" fill="white"/>
+  <ellipse cx="25.2" cy="9" rx="2.8" ry="1.4" fill="white"/>
+  <ellipse cx="32.8" cy="9" rx="2.8" ry="1.4" fill="white"/>
+  <circle cx="29" cy="9" r="1.8" fill="#fffbe8"/>
+  <circle cx="29" cy="9" r="0.9" fill="#f0e080"/>
+</svg>

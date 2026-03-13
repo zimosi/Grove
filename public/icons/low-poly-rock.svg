@@ -1,0 +1,9 @@
+<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M12 32L7 22L14 12L26 10L34 20L30 32Z" fill="#8a8880"/>
+  <path d="M12 32L7 22L14 12L26 10L34 20L30 32Z" stroke="#6a6860" stroke-width="0.8" stroke-linejoin="round"/>
+  <path d="M7 22L14 12L22 19Z" fill="#a0a098" opacity="0.7"/>
+  <path d="M14 12L26 10L22 19Z" fill="#9a9890" opacity="0.6"/>
+  <path d="M26 10L34 20L22 19Z" fill="#7a7870" opacity="0.7"/>
+  <path d="M7 22L22 19L12 32Z" fill="#6a6860" opacity="0.5"/>
+  <path d="M22 19L34 20L30 32Z" fill="#6a6860" opacity="0.4"/>
+</svg>
