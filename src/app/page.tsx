@@ -58,13 +58,13 @@ export default function HomePage() {
         <div className="flex flex-wrap gap-3 justify-center">
           <Link
             href="/builder"
-            className="h-13 px-8 rounded-2xl bg-grove-sage text-white text-[0.82rem] tracking-[0.1em] uppercase font-semibold hover:bg-grove-moss shadow-md active:scale-[0.98] transition-all duration-200"
+            className="inline-flex items-center h-13 px-8 rounded-2xl bg-grove-sage text-white text-[0.82rem] tracking-[0.1em] uppercase font-semibold hover:bg-grove-moss shadow-md active:scale-[0.98] transition-all duration-200"
           >
             Start Building — Free
           </Link>
           <Link
             href="/plants"
-            className="h-13 px-8 rounded-2xl border border-grove-border bg-white/80 text-grove-text text-[0.82rem] tracking-[0.08em] uppercase font-medium hover:border-grove-sage/40 hover:bg-white transition-all duration-200"
+            className="inline-flex items-center h-13 px-8 rounded-2xl border border-grove-border bg-white/80 text-grove-text text-[0.82rem] tracking-[0.08em] uppercase font-medium hover:border-grove-sage/40 hover:bg-white transition-all duration-200"
           >
             Shop Plants
           </Link>

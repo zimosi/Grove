@@ -27,7 +27,7 @@ export default function Navbar() {
         </Link>
 
         {/* Links */}
-        <ul className="flex items-center gap-1 flex-1">
+        <ul className="flex items-center gap-0.5 flex-1">
           {NAV_LINKS.map(({ href, label }) => {
             const active = pathname === href || pathname.startsWith(href + "/");
             return (
@@ -35,10 +35,10 @@ export default function Navbar() {
                 <Link
                   href={href}
                   className={[
-                    "relative px-3 py-1.5 rounded-lg text-[0.78rem] tracking-[0.01em] font-medium transition-colors",
+                    "relative px-4 py-1.5 rounded-lg text-[0.82rem] tracking-[0.02em] font-semibold transition-colors",
                     active
                       ? "text-grove-sage bg-grove-sage/8"
-                      : "text-grove-muted hover:text-grove-text hover:bg-grove-forest/60",
+                      : "text-grove-text/70 hover:text-grove-text hover:bg-grove-forest/60",
                   ].join(" ")}
                 >
                   {label}
