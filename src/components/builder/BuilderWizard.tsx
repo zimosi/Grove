@@ -108,23 +108,12 @@ export default function BuilderWizard() {
   const showCanvas = state.step >= 1 && state.container !== null;
 
   return (
-    <div className="h-screen flex overflow-hidden bg-grove-bg">
+    <div className="h-[calc(100vh-3.5rem)] mt-14 flex overflow-hidden bg-grove-bg">
       {/* Left sidebar — wizard steps */}
       <aside className="w-[360px] shrink-0 flex flex-col bg-grove-panel border-r border-grove-border shadow-sm overflow-hidden">
-        {/* Grove logo / header */}
-        <div className="px-8 pt-7 pb-6 border-b border-grove-border">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-grove-sage/15 flex items-center justify-center ring-1 ring-grove-sage/20">
-              <div className="w-3 h-3 rounded-full bg-grove-sage" />
-            </div>
-            <span
-              className="grove-heading text-xl tracking-[-0.03em] font-serif"
-              style={{ fontFamily: "var(--font-display)" }}
-            >
-              Grove
-            </span>
-          </div>
-          <p className="mt-2 text-[0.7rem] tracking-[0.12em] uppercase text-grove-muted/80 font-medium">
+        {/* Section label */}
+        <div className="px-8 pt-5 pb-4 border-b border-grove-border">
+          <p className="text-[0.65rem] tracking-[0.2em] uppercase text-grove-muted font-medium">
             Terrarium Builder
           </p>
         </div>

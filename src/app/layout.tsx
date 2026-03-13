@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import Navbar from "@/components/nav/Navbar";
 
 export const metadata: Metadata = {
-  title: "Grove — Terrarium Builder",
+  title: "Grove — Living Terrarium Studio",
   description:
-    "Design your own miniature ecosystem. Choose a glass vessel, layer your substrate, and place plants and decorations in an immersive 3D experience.",
+    "Design handcrafted terrariums, shop rare plants and decorations, and discover a community of miniature ecosystem builders.",
 };
 
 export default function RootLayout({
@@ -14,7 +15,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <Navbar />
+        {children}
+      </body>
     </html>
   );
 }
