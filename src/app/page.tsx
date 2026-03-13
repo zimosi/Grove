@@ -21,7 +21,7 @@ const TAG_COLORS: Record<string, string> = {
 
 export default function HomePage() {
   return (
-    <main className="pt-14">
+    <main>
 
       {/* ── Hero ── */}
       <section className="relative min-h-[92vh] flex flex-col items-center justify-center text-center overflow-hidden px-6">

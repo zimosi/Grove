@@ -108,7 +108,7 @@ export default function BuilderWizard() {
   const showCanvas = state.step >= 1 && state.container !== null;
 
   return (
-    <div className="h-[calc(100vh-3.5rem)] mt-14 flex overflow-hidden bg-grove-bg">
+    <div className="h-[calc(100vh-3.5rem)] flex overflow-hidden bg-grove-bg">
       {/* Left sidebar — wizard steps */}
       <aside className="w-[360px] shrink-0 flex flex-col bg-grove-panel border-r border-grove-border shadow-sm overflow-hidden">
         {/* Section label */}

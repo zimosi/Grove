@@ -17,7 +17,7 @@ export default function CollectionsPage() {
   const earnedCount = ACHIEVEMENTS.filter((a) => a.earned).length;
 
   return (
-    <main className="pt-20 min-h-screen bg-grove-bg">
+    <main className="min-h-screen bg-grove-bg">
       {/* Header */}
       <div className="border-b border-grove-border bg-grove-panel/80">
         <div className="max-w-5xl mx-auto px-6 py-12">

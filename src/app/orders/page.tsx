@@ -28,7 +28,7 @@ const MOCK_ORDERS = [
 
 export default function OrdersPage() {
   return (
-    <main className="pt-20 min-h-screen bg-grove-bg">
+    <main className="min-h-screen bg-grove-bg">
       {/* Header */}
       <div className="border-b border-grove-border bg-grove-panel/80">
         <div className="max-w-4xl mx-auto px-6 py-12">
