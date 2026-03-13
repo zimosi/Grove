@@ -27,7 +27,7 @@ export default function Navbar() {
         </Link>
 
         {/* Links */}
-        <ul className="flex items-center gap-1 flex-1 justify-center">
+        <ul className="flex items-center justify-evenly flex-1">
           {NAV_LINKS.map(({ href, label }) => {
             const active = pathname === href || pathname.startsWith(href + "/");
             return (
