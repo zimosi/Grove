@@ -27,7 +27,7 @@ const FEATURED = POSTS[2]; // Yuna's lavender
 
 export default function CommunitiesPage() {
   return (
-    <main className="pt-14 min-h-screen bg-grove-bg">
+    <main className="pt-20 min-h-screen bg-grove-bg">
       {/* Header */}
       <div className="border-b border-grove-border bg-grove-panel/80">
         <div className="max-w-7xl mx-auto px-6 py-12 flex flex-col sm:flex-row sm:items-end gap-6 justify-between">
