@@ -1,6 +1,7 @@
 "use client";
 import { useRef, useMemo, useEffect, useCallback, useState } from "react";
 import { useFrame } from "@react-three/fiber";
+import { useTexture } from "@react-three/drei";
 import * as THREE from "three";
 import type { ContainerShape, SubstrateType, ToolMode } from "@/types";
 import {
@@ -21,41 +22,6 @@ const JAR_FILL_R   = 0.476;
 const RAISE_SPEED  = 0.0015;  // slow accumulation — spreading does the heavy lifting
 const BRUSH_RADIUS = 0.16;    // wide deposit area
 
-// ── Sand texture (procedural canvas) ──────────────────────────────────────
-let _sandTex: THREE.CanvasTexture | null = null;
-function getSandTexture(): THREE.CanvasTexture {
-  if (_sandTex) return _sandTex;
-  const size = 512;
-  const canvas = document.createElement("canvas");
-  canvas.width = canvas.height = size;
-  const ctx = canvas.getContext("2d")!;
-  // Base warm sand colour
-  ctx.fillStyle = "#c8a96e";
-  ctx.fillRect(0, 0, size, size);
-  // Fine grain — thousands of tiny dots with slight value variation
-  for (let i = 0; i < 22000; i++) {
-    const x = Math.random() * size, y = Math.random() * size;
-    const r = Math.random() * 1.8 + 0.2;
-    const v = (Math.random() - 0.5) * 50;
-    const rr = Math.max(140, Math.min(230, 200 + v));
-    const gg = Math.max(100, Math.min(185, 169 + v * 0.75));
-    const bb = Math.max(50,  Math.min(130, 110 + v * 0.55));
-    ctx.fillStyle = `rgb(${rr},${gg},${bb})`;
-    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
-  }
-  // Occasional darker mineral grains
-  for (let i = 0; i < 600; i++) {
-    const x = Math.random() * size, y = Math.random() * size;
-    const r = Math.random() * 3 + 1;
-    const d = Math.random() * 40;
-    ctx.fillStyle = `rgb(${130 + d},${100 + d},${60 + d})`;
-    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
-  }
-  _sandTex = new THREE.CanvasTexture(canvas);
-  _sandTex.repeat.set(5, 5);
-  _sandTex.wrapS = _sandTex.wrapT = THREE.RepeatWrapping;
-  return _sandTex;
-}
 
 // ── Soil texture (procedural canvas) ──────────────────────────────────────
 let _soilTex: THREE.CanvasTexture | null = null;
@@ -263,12 +229,22 @@ export default function TerrainMesh({
   }, [shape]);
 
   // ── Material ──────────────────────────────────────────────────────────
+  const [sandColor, sandRough] = useTexture([
+    "/textures/sand_color.png",
+    "/textures/sand_roughness.png",
+  ]);
+
   const material = useMemo(() => {
     if (substrate === "sand") {
-      return new THREE.MeshStandardMaterial({ map: getSandTexture(), roughness: 0.95, metalness: 0, side: THREE.DoubleSide, envMapIntensity: 0 });
+      [sandColor, sandRough].forEach((t) => {
+        t.wrapS = t.wrapT = THREE.RepeatWrapping;
+        t.repeat.set(shape === "tank" ? 4 : 3, shape === "tank" ? 3 : 3);
+        t.needsUpdate = true;
+      });
+      return new THREE.MeshStandardMaterial({ map: sandColor, roughnessMap: sandRough, roughness: 0.95, metalness: 0, side: THREE.DoubleSide, envMapIntensity: 0 });
     }
     return new THREE.MeshStandardMaterial({ map: getSoilTexture(), roughness: 1, metalness: 0, side: THREE.DoubleSide, envMapIntensity: 0 });
-  }, [substrate]);
+  }, [substrate, shape, sandColor, sandRough]);
 
   // ── Vertex update ─────────────────────────────────────────────────────
   const updateMesh = useCallback(() => {
