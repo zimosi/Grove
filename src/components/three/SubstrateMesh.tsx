@@ -70,7 +70,7 @@ function JarSandSubstrate() {
       t.wrapS = t.wrapT = THREE.RepeatWrapping;
       t.needsUpdate = true;
     });
-    return new THREE.MeshStandardMaterial({ map: colorMap, roughnessMap: roughMap, color: "#d4aa6a", roughness: 0.95, metalness: 0, envMapIntensity: 0 });
+    return new THREE.MeshStandardMaterial({ map: colorMap, roughnessMap: roughMap, color: "#e8dbb8", roughness: 0.95, metalness: 0, envMapIntensity: 0 });
   }, [colorMap, roughMap]);
   const geo = useMemo(() => new THREE.CylinderGeometry(JAR_RADIUS, JAR_RADIUS, JAR_HEIGHT, 72), []);
   return <mesh geometry={geo} material={material} position={[0, JAR_YBASE + JAR_HEIGHT / 2, 0]} receiveShadow />;
@@ -87,7 +87,7 @@ function TankSandSubstrate() {
       t.wrapS = t.wrapT = THREE.RepeatWrapping;
       t.needsUpdate = true;
     });
-    return new THREE.MeshStandardMaterial({ map: colorMap, roughnessMap: roughMap, color: "#d4aa6a", roughness: 0.95, metalness: 0, envMapIntensity: 0 });
+    return new THREE.MeshStandardMaterial({ map: colorMap, roughnessMap: roughMap, color: "#e8dbb8", roughness: 0.95, metalness: 0, envMapIntensity: 0 });
   }, [colorMap, roughMap]);
   const geo = useMemo(() => new THREE.BoxGeometry(TANK_WIDTH, TANK_HEIGHT, TANK_DEPTH), []);
   return <mesh geometry={geo} material={material} position={[0, TANK_YBASE + TANK_HEIGHT / 2, 0]} receiveShadow />;
