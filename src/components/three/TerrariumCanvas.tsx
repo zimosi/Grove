@@ -66,7 +66,7 @@ function SceneLights() {
       <directionalLight
         ref={sunRef}
         position={[-5, 9, 1]}
-        intensity={1.1}
+        intensity={0.75}
         color="#fff8f0"
         castShadow
       />
@@ -187,7 +187,7 @@ function SceneContent({
           far={2}
           color="#0a1a0f"
         />
-        <Environment preset="studio" background={false} />
+        <Environment preset="forest" background={false} environmentIntensity={0.3} />
       </Suspense>
     </>
   );
@@ -214,7 +214,7 @@ export default function TerrariumCanvas({
         antialias: true,
         alpha: true,
         toneMapping: THREE.ACESFilmicToneMapping,
-        toneMappingExposure: 1.4,
+        toneMappingExposure: 0.85,
       }}
       style={{ background: "transparent" }}
       shadows="soft"
