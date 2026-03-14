@@ -1,6 +1,5 @@
 "use client";
 import { useMemo } from "react";
-import { useTexture } from "@react-three/drei";
 import * as THREE from "three";
 import type { ContainerShape, SubstrateType } from "@/types";
 
@@ -14,6 +13,39 @@ const TANK_HEIGHT = 0.20;
 const TANK_WIDTH  = 1.32;  // inner width
 const TANK_DEPTH  = 0.78;  // inner depth
 const TANK_YBASE  = -0.375; // half of tank height (centered at y=0)
+
+// ── Procedural sand texture (canvas) ──────────────────────────────────────
+let _sandTex: THREE.CanvasTexture | null = null;
+function getSandTexture(): THREE.CanvasTexture {
+  if (_sandTex) return _sandTex;
+  const size = 512;
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext("2d")!;
+  ctx.fillStyle = "#c8a96e";
+  ctx.fillRect(0, 0, size, size);
+  for (let i = 0; i < 22000; i++) {
+    const x = Math.random() * size, y = Math.random() * size;
+    const r = Math.random() * 1.8 + 0.2;
+    const v = (Math.random() - 0.5) * 50;
+    const rr = Math.max(140, Math.min(230, 200 + v));
+    const gg = Math.max(100, Math.min(185, 169 + v * 0.75));
+    const bb = Math.max(50,  Math.min(130, 110 + v * 0.55));
+    ctx.fillStyle = `rgb(${rr},${gg},${bb})`;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+  }
+  for (let i = 0; i < 600; i++) {
+    const x = Math.random() * size, y = Math.random() * size;
+    const r = Math.random() * 3 + 1;
+    const d = Math.random() * 40;
+    ctx.fillStyle = `rgb(${130 + d},${100 + d},${60 + d})`;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+  }
+  _sandTex = new THREE.CanvasTexture(canvas);
+  _sandTex.repeat.set(5, 5);
+  _sandTex.wrapS = _sandTex.wrapT = THREE.RepeatWrapping;
+  return _sandTex;
+}
 
 // ── Procedural soil texture (canvas) ──────────────────────────────────────
 let _soilTex: THREE.CanvasTexture | null = null;
@@ -60,75 +92,19 @@ function getSoilTexture(): THREE.CanvasTexture {
 
 // ── Sand substrates ────────────────────────────────────────────────────────
 function JarSandSubstrate() {
-  const [colorMap, roughMap] = useTexture([
-    "/textures/sand_color.png",
-    "/textures/sand_roughness.png",
-  ]);
-
-  const material = useMemo(() => {
-    [colorMap, roughMap].forEach((t) => {
-      t.repeat.set(3, 3);
-      t.wrapS = t.wrapT = THREE.RepeatWrapping;
-      t.needsUpdate = true;
-    });
-    return new THREE.MeshStandardMaterial({
-      map: colorMap,
-      roughnessMap: roughMap,
-      roughness: 0.95,
-      metalness: 0,
-      envMapIntensity: 0,
-    });
-  }, [colorMap, roughMap]);
-
-  const geo = useMemo(
-    () => new THREE.CylinderGeometry(JAR_RADIUS, JAR_RADIUS, JAR_HEIGHT, 72),
-    []
-  );
-
-  return (
-    <mesh
-      geometry={geo}
-      material={material}
-      position={[0, JAR_YBASE + JAR_HEIGHT / 2, 0]}
-      receiveShadow
-    />
-  );
+  const material = useMemo(() => new THREE.MeshStandardMaterial({
+    map: getSandTexture(), roughness: 0.95, metalness: 0, envMapIntensity: 0,
+  }), []);
+  const geo = useMemo(() => new THREE.CylinderGeometry(JAR_RADIUS, JAR_RADIUS, JAR_HEIGHT, 72), []);
+  return <mesh geometry={geo} material={material} position={[0, JAR_YBASE + JAR_HEIGHT / 2, 0]} receiveShadow />;
 }
 
 function TankSandSubstrate() {
-  const [colorMap, roughMap] = useTexture([
-    "/textures/sand_color.png",
-    "/textures/sand_roughness.png",
-  ]);
-
-  const material = useMemo(() => {
-    [colorMap, roughMap].forEach((t) => {
-      t.repeat.set(4, 3);
-      t.wrapS = t.wrapT = THREE.RepeatWrapping;
-      t.needsUpdate = true;
-    });
-    return new THREE.MeshStandardMaterial({
-      map: colorMap,
-      roughnessMap: roughMap,
-      roughness: 0.95,
-      metalness: 0,
-      envMapIntensity: 0,
-    });
-  }, [colorMap, roughMap]);
-
-  const geo = useMemo(
-    () => new THREE.BoxGeometry(TANK_WIDTH, TANK_HEIGHT, TANK_DEPTH),
-    []
-  );
-
-  return (
-    <mesh
-      geometry={geo}
-      material={material}
-      position={[0, TANK_YBASE + TANK_HEIGHT / 2, 0]}
-      receiveShadow
-    />
-  );
+  const material = useMemo(() => new THREE.MeshStandardMaterial({
+    map: getSandTexture(), roughness: 0.95, metalness: 0, envMapIntensity: 0,
+  }), []);
+  const geo = useMemo(() => new THREE.BoxGeometry(TANK_WIDTH, TANK_HEIGHT, TANK_DEPTH), []);
+  return <mesh geometry={geo} material={material} position={[0, TANK_YBASE + TANK_HEIGHT / 2, 0]} receiveShadow />;
 }
 
 // ── Soil substrates ────────────────────────────────────────────────────────
