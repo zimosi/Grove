@@ -38,6 +38,9 @@ export default function FoamMesh({ brushRefs, toolMode, brushSize = 0.13, undoTr
   const isPlace = toolMode === "place";
   const lastPaintTime = useRef(0);
   const historyRef = useRef<Float32Array[]>([]);
+  // Accumulated offset along the surface normal while holding in one spot.
+  // Resets on each new pointer-down or pointer-move so dragging works normally.
+  const stackAccumRef = useRef(0);
 
   const mat = useMemo(
     () =>
@@ -76,7 +79,10 @@ export default function FoamMesh({ brushRefs, toolMode, brushSize = 0.13, undoTr
     const pos = brushRefs.pos.current;
     const norm = brushRefs.norm.current;
     if (isFoam) {
-      const offset = STACK_OFFSET_FACTOR * brushSize;
+      // Each tick push the paint centre further along the normal so it stays
+      // ahead of the growing foam surface rather than getting buried inside it.
+      stackAccumRef.current += brushSize * 0.18;
+      const offset = STACK_OFFSET_FACTOR * brushSize + stackAccumRef.current;
       paintFoam(mc, pos.x + norm.x * offset, pos.y + norm.y * offset, pos.z + norm.z * offset, brushSize);
     } else {
       smoothFoam(mc, pos.x, pos.y, pos.z, brushSize);
@@ -145,6 +151,9 @@ export default function FoamMesh({ brushRefs, toolMode, brushSize = 0.13, undoTr
       if (!isFoamActive) return;
       e.stopPropagation();
       updateBrushPos(e);
+      // User moved to a new surface point — reset stack so the next paint
+      // starts fresh from the actual hit position, not an accumulated offset.
+      stackAccumRef.current = 0;
     },
     [isFoamActive, updateBrushPos]
   );
@@ -157,6 +166,7 @@ export default function FoamMesh({ brushRefs, toolMode, brushSize = 0.13, undoTr
       saveSnapshot();
       updateBrushPos(e);
       brushRefs.holding.current = true;
+      stackAccumRef.current = 0; // fresh stroke — start accumulation from zero
       // Immediate first stroke
       doPaint(e.point.x, e.point.y, e.point.z);
     },
