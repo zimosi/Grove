@@ -241,7 +241,7 @@ export default function TerrainMesh({
         t.repeat.set(shape === "tank" ? 4 : 3, shape === "tank" ? 3 : 3);
         t.needsUpdate = true;
       });
-      return new THREE.MeshStandardMaterial({ map: sandColor, roughnessMap: sandRough, roughness: 0.95, metalness: 0, side: THREE.DoubleSide, envMapIntensity: 0 });
+      return new THREE.MeshStandardMaterial({ map: sandColor, roughnessMap: sandRough, color: "#d4aa6a", roughness: 0.95, metalness: 0, side: THREE.DoubleSide, envMapIntensity: 0 });
     }
     return new THREE.MeshStandardMaterial({ map: getSoilTexture(), roughness: 1, metalness: 0, side: THREE.DoubleSide, envMapIntensity: 0 });
   }, [substrate, shape, sandColor, sandRough]);

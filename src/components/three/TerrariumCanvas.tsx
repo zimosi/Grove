@@ -61,7 +61,7 @@ function SceneLights() {
   return (
     <>
       {/* Lower ambient so shadows have enough contrast to be visible */}
-      <ambientLight intensity={0.35} color="#c8e8d0" />
+      <ambientLight intensity={0.35} color="#fff8ec" />
       {/* Main sun — upper-left, shadows fall to the right */}
       <directionalLight
         ref={sunRef}
@@ -187,7 +187,7 @@ function SceneContent({
           far={2}
           color="#0a1a0f"
         />
-        <Environment preset="forest" background={false} environmentIntensity={0.3} />
+        <Environment preset="apartment" background={false} environmentIntensity={0.2} />
       </Suspense>
     </>
   );
