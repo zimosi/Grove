@@ -43,12 +43,12 @@ export default function FoamMesh({ brushRefs, toolMode, brushSize = 0.13, undoTr
     () =>
       new THREE.MeshStandardMaterial({
         color: FOAM_COLOR,
-        roughness: 0.55,
-        metalness: 0.08,
+        roughness: 0.35,
+        metalness: 0.25,
         transparent: false,
         side: THREE.DoubleSide,
         depthWrite: true,
-        envMapIntensity: 0.5,
+        envMapIntensity: 0.9,
       }),
     []
   );
