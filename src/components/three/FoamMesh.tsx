@@ -38,6 +38,9 @@ export default function FoamMesh({ brushRefs, toolMode, brushSize = 0.13, undoTr
   const isPlace = toolMode === "place";
   const lastPaintTime = useRef(0);
   const historyRef = useRef<Float32Array[]>([]);
+  // Tracks whether we've already painted for the current hold session so
+  // useFrame fires exactly once per click (covers clicks on terrain too).
+  const holdPaintedRef = useRef(false);
 
   const mat = useMemo(
     () =>
@@ -66,13 +69,28 @@ export default function FoamMesh({ brushRefs, toolMode, brushSize = 0.13, undoTr
     return m;
   }, [mat]);
 
-  // ── Continuous smoothing while pointer is held (foam paint is click-only) ─
+  // ── Per-frame: one foam blob per click, continuous smoothing ─────────────
   useFrame(() => {
-    if (!isSmooth || !brushRefs.holding.current) return;
+    if (!isFoamActive || !brushRefs.holding.current) return;
+
+    if (isFoam) {
+      // Paint exactly once per hold — covers clicks that land on terrain
+      // (where TerrainMesh sets holding=true but never calls handlePointerDown)
+      if (holdPaintedRef.current) return;
+      holdPaintedRef.current = true;
+      const pos = brushRefs.pos.current;
+      const norm = brushRefs.norm.current;
+      const offset = STACK_OFFSET_FACTOR * brushSize;
+      paintFoam(mc, pos.x + norm.x * offset, pos.y + norm.y * offset, pos.z + norm.z * offset, brushSize);
+      mc.update();
+      mc.geometry.computeBoundingSphere();
+      return;
+    }
+
+    // Smooth: continuous while held
     const now = performance.now();
     if (now - lastPaintTime.current < PAINT_INTERVAL_MS) return;
     lastPaintTime.current = now;
-
     const pos = brushRefs.pos.current;
     smoothFoam(mc, pos.x, pos.y, pos.z, brushSize);
     mc.update();
@@ -150,9 +168,8 @@ export default function FoamMesh({ brushRefs, toolMode, brushSize = 0.13, undoTr
       // Snapshot before this stroke so it can be undone as one unit
       saveSnapshot();
       updateBrushPos(e);
+      holdPaintedRef.current = false; // let useFrame fire the single blob
       brushRefs.holding.current = true;
-      // Single click — place one foam blob immediately
-      doPaint(e.point.x, e.point.y, e.point.z);
     },
     [isFoamActive, brushRefs, updateBrushPos, doPaint, saveSnapshot]
   );
@@ -161,12 +178,14 @@ export default function FoamMesh({ brushRefs, toolMode, brushSize = 0.13, undoTr
     (e: ThreeEvent<PointerEvent>) => {
       e.stopPropagation();
       brushRefs.holding.current = false;
+      holdPaintedRef.current = false;
     },
     [brushRefs]
   );
 
   const handlePointerLeave = useCallback(() => {
     brushRefs.holding.current = false;
+    holdPaintedRef.current = false;
   }, [brushRefs]);
 
   // ── Place mode: click on foam to place plant/decoration ──────────────────
