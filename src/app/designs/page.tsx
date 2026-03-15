@@ -2,7 +2,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { supabase } from "@/lib/supabase";
+import { getSupabase } from "@/lib/supabase";
 import type { BuilderState } from "@/types";
 import AuthModal from "@/components/auth/AuthModal";
 
@@ -78,8 +78,10 @@ export default function DesignsPage() {
 
   const fetchDesigns = useCallback(async () => {
     if (!user) return;
+    const sb = getSupabase();
+    if (!sb) return;
     setFetching(true);
-    const { data, error } = await supabase
+    const { data, error } = await sb
       .from("terrariums")
       .select("*")
       .order("updated_at", { ascending: false });
@@ -93,7 +95,8 @@ export default function DesignsPage() {
   }, [user, loading, fetchDesigns]);
 
   const handleDelete = async (id: string) => {
-    await supabase.from("terrariums").delete().eq("id", id);
+    const sb = getSupabase();
+    if (sb) await sb.from("terrariums").delete().eq("id", id);
     setDesigns((prev) => prev.filter((d) => d.id !== id));
   };
 

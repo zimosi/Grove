@@ -7,20 +7,22 @@ import {
   type ReactNode,
 } from "react";
 import type { Session, User } from "@supabase/supabase-js";
-import { supabase } from "@/lib/supabase";
+import { getSupabase } from "@/lib/supabase";
 
 interface AuthContextValue {
   user: User | null;
   session: Session | null;
   loading: boolean;
   signOut: () => Promise<void>;
+  isConfigured: boolean;
 }
 
 const AuthContext = createContext<AuthContextValue>({
   user: null,
   session: null,
-  loading: true,
+  loading: false,
   signOut: async () => {},
+  isConfigured: false,
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -28,14 +30,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Hydrate on mount
-    supabase.auth.getSession().then(({ data }) => {
+    const sb = getSupabase();
+    if (!sb) {
+      setLoading(false);
+      return;
+    }
+
+    sb.auth.getSession().then(({ data }) => {
       setSession(data.session);
       setLoading(false);
     });
 
-    // Keep in sync
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, s) => {
+    const { data: listener } = sb.auth.onAuthStateChange((_event, s) => {
       setSession(s);
       setLoading(false);
     });
@@ -44,12 +50,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    const sb = getSupabase();
+    if (sb) await sb.auth.signOut();
   };
 
   return (
     <AuthContext.Provider
-      value={{ user: session?.user ?? null, session, loading, signOut }}
+      value={{
+        user: session?.user ?? null,
+        session,
+        loading,
+        signOut,
+        isConfigured: getSupabase() !== null,
+      }}
     >
       {children}
     </AuthContext.Provider>

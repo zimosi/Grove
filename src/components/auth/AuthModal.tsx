@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
+import { getSupabase } from "@/lib/supabase";
 
 interface AuthModalProps {
   open: boolean;
@@ -28,9 +28,11 @@ export default function AuthModal({ open, onClose }: AuthModalProps) {
   if (!open) return null;
 
   const handleGoogleSignIn = async () => {
+    const sb = getSupabase();
+    if (!sb) { setError("Supabase is not configured yet."); return; }
     setLoading(true);
     setError(null);
-    const { error } = await supabase.auth.signInWithOAuth({
+    const { error } = await sb.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo: `${window.location.origin}/auth/callback` },
     });
@@ -43,9 +45,11 @@ export default function AuthModal({ open, onClose }: AuthModalProps) {
   const handleMagicLink = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim()) return;
+    const sb = getSupabase();
+    if (!sb) { setError("Supabase is not configured yet."); return; }
     setLoading(true);
     setError(null);
-    const { error } = await supabase.auth.signInWithOtp({
+    const { error } = await sb.auth.signInWithOtp({
       email: email.trim(),
       options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
     });

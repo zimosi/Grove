@@ -10,7 +10,7 @@ import { getCatalogItem } from "@/data/catalog";
 import type { TerrainPreset } from "@/lib/heightmap";
 import { useAuth } from "@/context/AuthContext";
 import AuthModal from "@/components/auth/AuthModal";
-import { supabase } from "@/lib/supabase";
+import { getSupabase } from "@/lib/supabase";
 
 const TerrariumCanvas = dynamic(
   () => import("@/components/three/TerrariumCanvas"),
@@ -69,7 +69,9 @@ export default function BuilderWizard() {
     setIsSaving(true);
     setSaveMessage(null);
     try {
-      const { error } = await supabase.from("terrariums").insert({
+      const sb = getSupabase();
+      if (!sb) throw new Error("not configured");
+      const { error } = await sb.from("terrariums").insert({
         user_id: user.id,
         name: `Terrarium — ${new Date().toLocaleDateString()}`,
         state: state as unknown as Record<string, unknown>,
