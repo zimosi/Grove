@@ -1,13 +1,22 @@
 "use client";
-import { useRef, useMemo, useEffect } from "react";
+import { useRef, useMemo, useEffect, useCallback } from "react";
 import { useFrame } from "@react-three/fiber";
+import type { ThreeEvent } from "@react-three/fiber";
 import * as THREE from "three";
-import type { ContainerShape } from "@/types";
+import type { ContainerShape, ToolMode } from "@/types";
+import type { FoamBrushRefs } from "./FoamMesh";
+
+interface WallFoamProps {
+  toolMode?: ToolMode;
+  foamBrushRefs?: FoamBrushRefs;
+}
 
 interface GlassContainerProps {
   shape: ContainerShape;
   autoRotate?: boolean;
   children?: React.ReactNode;
+  toolMode?: ToolMode;
+  foamBrushRefs?: FoamBrushRefs;
 }
 
 // Physical glass: keep it clear (high transmission), but avoid "white slab" look.
@@ -51,15 +60,53 @@ function RimLine({ radius, y }: { radius: number; y: number }) {
 }
 
 // ── Jar ────────────────────────────────────────────────────────────────────
-function JarGeometry() {
+function JarGeometry({ toolMode, foamBrushRefs }: WallFoamProps) {
+  const isFoam = toolMode === "foam";
+
   const bodyGeo = useMemo(
     () => new THREE.CylinderGeometry(0.48, 0.52, 1.1, 72, 1, true),
     []
   );
 
+  const handleWallPointerDown = useCallback(
+    (e: ThreeEvent<PointerEvent>) => {
+      if (!isFoam || !foamBrushRefs) return;
+      // Outward normal for cylinder = radial direction from axis at hit point.
+      // Inner face: ray (camPos → hitPoint) traveling WITH outward normal (dot > 0).
+      // Outer face: dot ≤ 0 → reject.
+      const outward = new THREE.Vector3(e.point.x, 0, e.point.z).normalize();
+      const rayDir = e.point.clone().sub(e.camera.position).normalize();
+      if (rayDir.dot(outward) <= 0) return;
+      e.stopPropagation();
+      foamBrushRefs.pos.current.copy(e.point);
+      // Inward direction = toward axis = -outward
+      foamBrushRefs.norm.current.copy(outward).negate();
+      foamBrushRefs.holding.current = true;
+    },
+    [isFoam, foamBrushRefs]
+  );
+
+  const handleWallPointerUp = useCallback(
+    (e: ThreeEvent<PointerEvent>) => {
+      e.stopPropagation();
+      if (foamBrushRefs) foamBrushRefs.holding.current = false;
+    },
+    [foamBrushRefs]
+  );
+
+  const handleWallPointerLeave = useCallback(() => {
+    if (foamBrushRefs) foamBrushRefs.holding.current = false;
+  }, [foamBrushRefs]);
+
   return (
     <group>
-      <mesh geometry={bodyGeo} material={glassMaterial} />
+      <mesh
+        geometry={bodyGeo}
+        material={glassMaterial}
+        onPointerDown={isFoam ? handleWallPointerDown : undefined}
+        onPointerUp={isFoam ? handleWallPointerUp : undefined}
+        onPointerLeave={isFoam ? handleWallPointerLeave : undefined}
+      />
       <RimLine radius={0.47} y={0.55} />
       <RimLine radius={0.51} y={-0.55} />
     </group>
@@ -73,10 +120,11 @@ const TW = 1.4;   // width (X)
 const TH = 0.75;  // height (Y)
 const TD = 0.85;  // depth (Z)
 
-function TankGeometry() {
+function TankGeometry({ toolMode, foamBrushRefs }: WallFoamProps) {
   const hw = TW / 2;
   const hh = TH / 2;
   const hd = TD / 2;
+  const isFoam = toolMode === "foam";
 
   // Edge outline: all 12 edges of the box EXCEPT the 4 top edges (open top)
   const edgeGeo = useMemo(() => {
@@ -102,26 +150,99 @@ function TankGeometry() {
     return g;
   }, []);
 
+  /**
+   * Factory for a wall pointer-down handler.
+   * outward: the wall's outward-facing world normal (points away from container interior).
+   * inward:  the opposite — direction toward the container interior (used for foam offset).
+   *
+   * Inner face check: ray direction · outward > 0
+   *   → ray is travelling WITH the outward normal = it entered from the opposite side
+   *   = it hit the wall from INSIDE the container → allow.
+   * Outer face: ray direction · outward ≤ 0 → reject.
+   */
+  const makeWallHandler = useCallback(
+    (outward: THREE.Vector3, inward: THREE.Vector3) =>
+      (e: ThreeEvent<PointerEvent>) => {
+        if (!isFoam || !foamBrushRefs) return;
+        const rayDir = e.point.clone().sub(e.camera.position).normalize();
+        if (rayDir.dot(outward) <= 0) return; // outer face
+        e.stopPropagation();
+        foamBrushRefs.pos.current.copy(e.point);
+        foamBrushRefs.norm.current.copy(inward);
+        foamBrushRefs.holding.current = true;
+      },
+    [isFoam, foamBrushRefs]
+  );
+
+  const handlePointerUp = useCallback(
+    (e: ThreeEvent<PointerEvent>) => {
+      e.stopPropagation();
+      if (foamBrushRefs) foamBrushRefs.holding.current = false;
+    },
+    [foamBrushRefs]
+  );
+
+  const handlePointerLeave = useCallback(() => {
+    if (foamBrushRefs) foamBrushRefs.holding.current = false;
+  }, [foamBrushRefs]);
+
+  // Pre-build outward/inward normal pairs for each wall
+  const frontOut  = useMemo(() => new THREE.Vector3( 0, 0,  1), []);
+  const frontIn   = useMemo(() => new THREE.Vector3( 0, 0, -1), []);
+  const backOut   = useMemo(() => new THREE.Vector3( 0, 0, -1), []);
+  const backIn    = useMemo(() => new THREE.Vector3( 0, 0,  1), []);
+  const leftOut   = useMemo(() => new THREE.Vector3(-1, 0,  0), []);
+  const leftIn    = useMemo(() => new THREE.Vector3( 1, 0,  0), []);
+  const rightOut  = useMemo(() => new THREE.Vector3( 1, 0,  0), []);
+  const rightIn   = useMemo(() => new THREE.Vector3(-1, 0,  0), []);
+
   return (
     <group>
-      {/* Bottom */}
+      {/* Bottom — no foam placement on floor (TerrainMesh handles it) */}
       <mesh material={glassMaterial} position={[0, -hh, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[TW, TD]} />
       </mesh>
-      {/* Front wall */}
-      <mesh material={glassMaterial} position={[0, 0, hd]}>
+      {/* Front wall (faces +Z, outward = +Z) */}
+      <mesh
+        material={glassMaterial}
+        position={[0, 0, hd]}
+        onPointerDown={isFoam ? makeWallHandler(frontOut, frontIn) : undefined}
+        onPointerUp={isFoam ? handlePointerUp : undefined}
+        onPointerLeave={isFoam ? handlePointerLeave : undefined}
+      >
         <planeGeometry args={[TW, TH]} />
       </mesh>
-      {/* Back wall */}
-      <mesh material={glassMaterial} position={[0, 0, -hd]} rotation={[0, Math.PI, 0]}>
+      {/* Back wall (faces -Z, outward = -Z) */}
+      <mesh
+        material={glassMaterial}
+        position={[0, 0, -hd]}
+        rotation={[0, Math.PI, 0]}
+        onPointerDown={isFoam ? makeWallHandler(backOut, backIn) : undefined}
+        onPointerUp={isFoam ? handlePointerUp : undefined}
+        onPointerLeave={isFoam ? handlePointerLeave : undefined}
+      >
         <planeGeometry args={[TW, TH]} />
       </mesh>
-      {/* Left wall */}
-      <mesh material={glassMaterial} position={[-hw, 0, 0]} rotation={[0, Math.PI / 2, 0]}>
+      {/* Left wall (faces -X, outward = -X) */}
+      <mesh
+        material={glassMaterial}
+        position={[-hw, 0, 0]}
+        rotation={[0, Math.PI / 2, 0]}
+        onPointerDown={isFoam ? makeWallHandler(leftOut, leftIn) : undefined}
+        onPointerUp={isFoam ? handlePointerUp : undefined}
+        onPointerLeave={isFoam ? handlePointerLeave : undefined}
+      >
         <planeGeometry args={[TD, TH]} />
       </mesh>
-      {/* Right wall */}
-      <mesh material={glassMaterial} position={[hw, 0, 0]} rotation={[0, -Math.PI / 2, 0]}>
+      {/* Right wall (faces +X, outward = +X) */}
+      <mesh
+        material={glassMaterial}
+        position={[hw, 0, 0]}
+        rotation={[0, -Math.PI / 2, 0]}
+        onPointerDown={isFoam ? makeWallHandler(rightOut, rightIn) : undefined}
+        onPointerUp={isFoam ? handlePointerUp : undefined}
+        onPointerLeave={isFoam ? handlePointerLeave : undefined}
+      >
         <planeGeometry args={[TD, TH]} />
       </mesh>
       {/* Edge outlines */}
@@ -134,6 +255,8 @@ export default function GlassContainer({
   shape,
   autoRotate = false,
   children,
+  toolMode,
+  foamBrushRefs,
 }: GlassContainerProps) {
   const groupRef = useRef<THREE.Group>(null);
 
@@ -152,8 +275,8 @@ export default function GlassContainer({
 
   return (
     <group ref={groupRef}>
-      {shape === "jar" && <JarGeometry />}
-      {shape === "tank" && <TankGeometry />}
+      {shape === "jar" && <JarGeometry toolMode={toolMode} foamBrushRefs={foamBrushRefs} />}
+      {shape === "tank" && <TankGeometry toolMode={toolMode} foamBrushRefs={foamBrushRefs} />}
       {children}
     </group>
   );

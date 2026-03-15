@@ -16,14 +16,14 @@ export const FOAM_RES = 28;
  * and [-FOAM_HZ, FOAM_HZ] in Z.
  */
 export const FOAM_HX = 0.78;   // slightly beyond TW/2=0.70 so MC boundary voxels reach the wall
-export const FOAM_HY = 0.42;
+export const FOAM_HY = 0.90;   // covers floor (-0.60) to 2× container height (~1.20)
 export const FOAM_HZ = 0.50;   // slightly beyond TD/2=0.425
 
 /**
  * Vertical centre of the foam domain. Chosen so the domain comfortably
- * covers both jar (-0.54) and tank (-0.375) floors up to reasonable height.
+ * covers both jar (-0.54) and tank (-0.375) floors up to 2× container height.
  */
-export const FOAM_Y_CENTER = -0.10;
+export const FOAM_Y_CENTER = 0.30;
 
 /** Default brush radius in world units */
 export const FOAM_BRUSH_R = 0.13;

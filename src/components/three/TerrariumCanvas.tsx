@@ -1,5 +1,5 @@
 "use client";
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, type ThreeEvent } from "@react-three/fiber";
 import {
   OrbitControls,
@@ -120,7 +120,32 @@ function SceneContent({
     prevShapeRef.current = state.container;
   }
 
-  const isSculpting = state.toolMode === "sculpt";
+  // ── Container clipping planes ─────────────────────────────────────────
+  // Clip placed items so geometry protruding through glass walls is hidden.
+  const clippingPlanes = useMemo((): THREE.Plane[] => {
+    if (!state.container) return [];
+    if (state.container === "tank") {
+      // Tank: TW=1.4, TD=0.85 — clip slightly inside glass walls
+      const hw = 0.692; // half-width
+      const hd = 0.418; // half-depth
+      return [
+        new THREE.Plane(new THREE.Vector3( 1, 0,  0),  hw), // clip x < -hw
+        new THREE.Plane(new THREE.Vector3(-1, 0,  0),  hw), // clip x >  hw
+        new THREE.Plane(new THREE.Vector3( 0, 0,  1),  hd), // clip z < -hd
+        new THREE.Plane(new THREE.Vector3( 0, 0, -1),  hd), // clip z >  hd
+      ];
+    }
+    // Jar: approximate the cylinder with 10 planes (inner radius ≈ 0.46)
+    const r = 0.46;
+    const N = 10;
+    return Array.from({ length: N }, (_, i) => {
+      const angle = (i / N) * Math.PI * 2;
+      return new THREE.Plane(
+        new THREE.Vector3(-Math.cos(angle), 0, -Math.sin(angle)),
+        r
+      );
+    });
+  }, [state.container]);
 
   return (
     <>
@@ -138,7 +163,7 @@ function SceneContent({
       />
       <Suspense fallback={null}>
         {state.container && (
-          <GlassContainer shape={state.container} autoRotate={autoRotate}>
+          <GlassContainer shape={state.container} autoRotate={autoRotate} toolMode={state.toolMode} foamBrushRefs={foamBrushRefs}>
             {state.substrate && (
               <TerrainMesh
                 shape={state.container}
@@ -174,6 +199,7 @@ function SceneContent({
                   onRotatePlaced={onRotatePlaced}
                   isSelected={state.selectedPlacedId === placed.id}
                   toolMode={state.toolMode}
+                  clippingPlanes={clippingPlanes}
                 />
               );
             })}
@@ -215,6 +241,7 @@ export default function TerrariumCanvas({
         alpha: true,
         toneMapping: THREE.ACESFilmicToneMapping,
         toneMappingExposure: 0.85,
+        localClippingEnabled: true,
       }}
       style={{ background: "transparent" }}
       shadows="soft"

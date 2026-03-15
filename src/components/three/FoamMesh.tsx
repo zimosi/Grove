@@ -8,10 +8,16 @@ import type { ToolMode } from "@/types";
 import { paintFoam, smoothFoam, FOAM_HX, FOAM_HY, FOAM_HZ, FOAM_Y_CENTER, FOAM_RES } from "@/lib/foam";
 
 const FOAM_COLOR = "#2a2a2a";
-/** Minimum ms between continuous paint ticks while holding */
-const PAINT_INTERVAL_MS = 30;
-/** Offset along surface normal when painting so foam stacks upward on existing foam */
+/** Minimum ms between growth ticks while holding */
+const PAINT_INTERVAL_MS = 90;
+/** Base offset along surface normal so first blob appears on the surface, not inside */
 const STACK_OFFSET_FACTOR = 0.35;
+/** How far the growing tip advances per tick, in brushSize units */
+const GROW_STEP = 0.18;
+/** Maximum extension from click point, in brushSize units — prevents infinite growth */
+const GROW_MAX = 4.0;
+/** Cursor movement (in brushSize units) that resets the growing tip back to the surface */
+const MOVE_RESET_THRESHOLD = 0.55;
 
 export interface FoamBrushRefs {
   pos: React.MutableRefObject<THREE.Vector3>;
@@ -38,9 +44,12 @@ export default function FoamMesh({ brushRefs, toolMode, brushSize = 0.13, undoTr
   const isPlace = toolMode === "place";
   const lastPaintTime = useRef(0);
   const historyRef = useRef<Float32Array[]>([]);
-  // Tracks whether we've already painted for the current hold session so
-  // useFrame fires exactly once per click (covers clicks on terrain too).
-  const holdPaintedRef = useRef(false);
+  // Growing-tip state: how far along the normal the current stroke has extended
+  const growOffsetRef = useRef(0);
+  // Last painted position — used to detect cursor movement and reset the tip
+  const lastPaintPosRef = useRef(new THREE.Vector3());
+  // Whether the previous frame was also holding — detects new hold sessions
+  const wasHoldingRef = useRef(false);
 
   const mat = useMemo(
     () =>
@@ -69,29 +78,55 @@ export default function FoamMesh({ brushRefs, toolMode, brushSize = 0.13, undoTr
     return m;
   }, [mat]);
 
-  // ── Per-frame: one foam blob per click, continuous smoothing ─────────────
+  // ── Per-frame: directional foam growth + continuous smoothing ────────────
   useFrame(() => {
-    if (!isFoamActive || !brushRefs.holding.current) return;
+    if (!isFoamActive || !brushRefs.holding.current) {
+      wasHoldingRef.current = false;
+      return;
+    }
+
+    // Detect new hold session (first frame of this click/drag)
+    const isNewSession = !wasHoldingRef.current;
+    if (isNewSession) {
+      growOffsetRef.current = 0;
+      lastPaintPosRef.current.copy(brushRefs.pos.current);
+      // Reset timer so the first tick fires immediately regardless of how
+      // recently the previous session ended — fixes the "can't stack" issue
+      // where a quick re-click missed the interval window and painted nothing.
+      lastPaintTime.current = 0;
+    }
+    wasHoldingRef.current = true;
+
+    const now = performance.now();
+    if (now - lastPaintTime.current < PAINT_INTERVAL_MS) return;
+    lastPaintTime.current = now;
+
+    const pos = brushRefs.pos.current;
+    const norm = brushRefs.norm.current;
 
     if (isFoam) {
-      // Paint exactly once per hold — covers clicks that land on terrain
-      // (where TerrainMesh sets holding=true but never calls handlePointerDown)
-      if (holdPaintedRef.current) return;
-      holdPaintedRef.current = true;
-      const pos = brushRefs.pos.current;
-      const norm = brushRefs.norm.current;
-      const offset = STACK_OFFSET_FACTOR * brushSize;
-      paintFoam(mc, pos.x + norm.x * offset, pos.y + norm.y * offset, pos.z + norm.z * offset, brushSize);
+      // Reset growing tip if cursor moved significantly (new surface area)
+      const moved = pos.distanceTo(lastPaintPosRef.current);
+      if (moved > brushSize * MOVE_RESET_THRESHOLD) {
+        growOffsetRef.current = 0;
+      }
+      lastPaintPosRef.current.copy(pos);
+
+      // Paint at the current growing tip along the surface normal
+      const off = STACK_OFFSET_FACTOR * brushSize + growOffsetRef.current;
+      paintFoam(mc, pos.x + norm.x * off, pos.y + norm.y * off, pos.z + norm.z * off, brushSize);
       mc.update();
       mc.geometry.computeBoundingSphere();
+
+      // Advance tip for next tick — stops when cap is reached
+      growOffsetRef.current = Math.min(
+        growOffsetRef.current + brushSize * GROW_STEP,
+        brushSize * GROW_MAX
+      );
       return;
     }
 
     // Smooth: continuous while held
-    const now = performance.now();
-    if (now - lastPaintTime.current < PAINT_INTERVAL_MS) return;
-    lastPaintTime.current = now;
-    const pos = brushRefs.pos.current;
     smoothFoam(mc, pos.x, pos.y, pos.z, brushSize);
     mc.update();
     mc.geometry.computeBoundingSphere();
@@ -136,21 +171,6 @@ export default function FoamMesh({ brushRefs, toolMode, brushSize = 0.13, undoTr
     [brushRefs]
   );
 
-  const doPaint = useCallback(
-    (wx: number, wy: number, wz: number) => {
-      if (isFoam) {
-        const norm = brushRefs.norm.current;
-        const offset = STACK_OFFSET_FACTOR * brushSize;
-        paintFoam(mc, wx + norm.x * offset, wy + norm.y * offset, wz + norm.z * offset, brushSize);
-      } else {
-        smoothFoam(mc, wx, wy, wz, brushSize);
-      }
-      mc.update();
-      mc.geometry.computeBoundingSphere();
-    },
-    [mc, brushSize, brushRefs, isFoam]
-  );
-
   // ── Pointer handlers ───────────────────────────────────────────────────
   const handlePointerMove = useCallback(
     (e: ThreeEvent<PointerEvent>) => {
@@ -168,24 +188,21 @@ export default function FoamMesh({ brushRefs, toolMode, brushSize = 0.13, undoTr
       // Snapshot before this stroke so it can be undone as one unit
       saveSnapshot();
       updateBrushPos(e);
-      holdPaintedRef.current = false; // let useFrame fire the single blob
       brushRefs.holding.current = true;
     },
-    [isFoamActive, brushRefs, updateBrushPos, doPaint, saveSnapshot]
+    [isFoamActive, brushRefs, updateBrushPos, saveSnapshot]
   );
 
   const handlePointerUp = useCallback(
     (e: ThreeEvent<PointerEvent>) => {
       e.stopPropagation();
       brushRefs.holding.current = false;
-      holdPaintedRef.current = false;
     },
     [brushRefs]
   );
 
   const handlePointerLeave = useCallback(() => {
     brushRefs.holding.current = false;
-    holdPaintedRef.current = false;
   }, [brushRefs]);
 
   // ── Place mode: click on foam to place plant/decoration ──────────────────

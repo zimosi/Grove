@@ -188,6 +188,17 @@ export const DECORATIONS: CatalogItem[] = [
     color: "#908880",
     iconUrl: "/icons/natural-rock.svg",
   },
+  {
+    id: "gravel-patch",
+    name: "Gravel Patch",
+    category: "decoration",
+    price: 1.99,
+    modelUrl: "/models/gravel_ground_patch.glb",
+    scale: 0.07,
+    yOffset: 0.02,
+    color: "#9a9080",
+    iconUrl: "/icons/gravel-patch.svg",
+  },
 ];
 
 export const ALL_ITEMS = [...PLANTS, ...DECORATIONS];

@@ -50,6 +50,7 @@ interface SceneItemProps {
   onRotatePlaced?: (id: string, rotationY: number) => void;
   isSelected?: boolean;
   toolMode?: "place" | "remove" | "sculpt" | "foam" | "smooth";
+  clippingPlanes?: THREE.Plane[];
 }
 
 function GLBModel({
@@ -57,11 +58,13 @@ function GLBModel({
   scale,
   yOffset,
   isPlant,
+  clippingPlanes,
 }: {
   modelUrl: string;
   scale: number;
   yOffset: number;
   isPlant?: boolean;
+  clippingPlanes?: THREE.Plane[];
 }) {
   const { scene } = useGLTF(modelUrl);
   const cloned = useRef<THREE.Group | null>(null);
@@ -75,13 +78,22 @@ function GLBModel({
         if (child.material) {
           const materials = Array.isArray(child.material) ? child.material : [child.material];
           materials.forEach((m) => {
-            const mat = m as THREE.MeshStandardMaterial;
-            if (!mat) return;
-            mat.envMapIntensity = 0;
+            // Must be MeshStandardMaterial — other types (MeshBasicMaterial etc.)
+            // don't have roughness/metalness; casting and writing them yields NaN
+            // which corrupts the WebGL shader and drops the mesh from shadow maps.
+            if (!(m instanceof THREE.MeshStandardMaterial)) return;
             if (isPlant) {
-              mat.roughness = Math.max(mat.roughness, 0.85);
-              mat.metalness = 0;
+              m.roughness = Math.max(m.roughness * 0.75, 0.55);
+              m.metalness = 0;
+              m.envMapIntensity = 0.8;
+            } else {
+              m.roughness = Math.max(m.roughness * 0.85, 0.45);
+              m.metalness = Math.min(m.metalness, 0.15);
+              m.envMapIntensity = 1.0;
             }
+            m.clippingPlanes = clippingPlanes ?? [];
+            m.clipShadows = true;
+            m.needsUpdate = true;
           });
         }
       }
@@ -98,11 +110,18 @@ function GLBModel({
   );
 }
 
-function ProceduralRock() {
+function ProceduralRock({ clippingPlanes }: { clippingPlanes?: THREE.Plane[] }) {
   return (
     <mesh castShadow>
       <dodecahedronGeometry args={[0.06, 0]} />
-      <meshStandardMaterial color="#888880" roughness={0.9} metalness={0.1} envMapIntensity={0} />
+      <meshStandardMaterial
+        color="#888880"
+        roughness={0.72}
+        metalness={0.08}
+        envMapIntensity={0.5}
+        clippingPlanes={clippingPlanes ?? []}
+        clipShadows
+      />
     </mesh>
   );
 }
@@ -115,6 +134,7 @@ export default function SceneItem({
   onRotatePlaced,
   isSelected = false,
   toolMode,
+  clippingPlanes,
 }: SceneItemProps) {
   const { gl, controls } = useThree();
 
@@ -207,10 +227,11 @@ export default function SceneItem({
             scale={catalogItem.scale}
             yOffset={catalogItem.yOffset}
             isPlant={catalogItem.category === "plant"}
+            clippingPlanes={clippingPlanes}
           />
         </Suspense>
       ) : (
-        <ProceduralRock />
+        <ProceduralRock clippingPlanes={clippingPlanes} />
       )}
     </group>
   );
