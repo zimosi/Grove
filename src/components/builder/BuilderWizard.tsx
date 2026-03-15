@@ -8,6 +8,9 @@ import StepCustomize from "./StepCustomize";
 import type { ContainerShape, SubstrateType, PlacedItem, ToolMode } from "@/types";
 import { getCatalogItem } from "@/data/catalog";
 import type { TerrainPreset } from "@/lib/heightmap";
+import { useAuth } from "@/context/AuthContext";
+import AuthModal from "@/components/auth/AuthModal";
+import { supabase } from "@/lib/supabase";
 
 const TerrariumCanvas = dynamic(
   () => import("@/components/three/TerrariumCanvas"),
@@ -34,8 +37,20 @@ const HINTS: Record<number, string> = {
   3: "Select an item then click to place · Use Sculpt mode to shape terrain",
 };
 
+function loadInitialState() {
+  if (typeof window === "undefined") return initialState;
+  try {
+    const raw = sessionStorage.getItem("grove_load_state");
+    if (raw) {
+      sessionStorage.removeItem("grove_load_state");
+      return JSON.parse(raw);
+    }
+  } catch { /* ignore */ }
+  return initialState;
+}
+
 export default function BuilderWizard() {
-  const [state, dispatch] = useReducer(builderReducer, initialState);
+  const [state, dispatch] = useReducer(builderReducer, undefined, loadInitialState);
   const instanceId = useId();
   const instanceCounter = useRef(0);
   const [terrainPreset, setTerrainPreset] = useState<TerrainPreset | null>(null);
@@ -43,6 +58,30 @@ export default function BuilderWizard() {
   const [foamBrushSize, setFoamBrushSize] = useState(0.13);
   const [foamUndoTrigger, setFoamUndoTrigger] = useState(0);
   const handleFoamUndo = useCallback(() => setFoamUndoTrigger((n) => n + 1), []);
+
+  const { user } = useAuth();
+  const [authOpen, setAuthOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
+
+  const doSave = useCallback(async () => {
+    if (!user) { setAuthOpen(true); return; }
+    setIsSaving(true);
+    setSaveMessage(null);
+    try {
+      const { error } = await supabase.from("terrariums").insert({
+        user_id: user.id,
+        name: `Terrarium — ${new Date().toLocaleDateString()}`,
+        state: state as unknown as Record<string, unknown>,
+      });
+      setSaveMessage(error ? "Save failed. Please try again." : "Design saved!");
+    } catch {
+      setSaveMessage("Save failed. Please try again.");
+    } finally {
+      setIsSaving(false);
+      setTimeout(() => setSaveMessage(null), 3000);
+    }
+  }, [user, state]);
 
   const handleApplyPreset = useCallback((preset: TerrainPreset) => {
     setTerrainPreset(preset);
@@ -179,6 +218,8 @@ export default function BuilderWizard() {
               onBack={() => dispatch({ type: "PREV_STEP" })}
               onAddToCart={() => alert(`Order placed! Total: $${state.totalPrice.toFixed(2)}`)}
               onApplyPreset={handleApplyPreset}
+              onSaveDesign={doSave}
+              isSaving={isSaving}
             />
           )}
         </div>
@@ -344,6 +385,21 @@ export default function BuilderWizard() {
           </div>
         )}
       </main>
+
+      {/* Auth modal — opened when guest tries to save */}
+      <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
+
+      {/* Save feedback toast */}
+      {saveMessage && (
+        <div className={[
+          "fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-2xl text-[0.78rem] font-medium shadow-xl border backdrop-blur-sm transition-all",
+          saveMessage.includes("failed")
+            ? "bg-red-50 border-red-200 text-red-700"
+            : "bg-grove-panel border-grove-sage/30 text-grove-sage",
+        ].join(" ")}>
+          {saveMessage}
+        </div>
+      )}
     </div>
   );
 }

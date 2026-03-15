@@ -18,6 +18,8 @@ interface StepCustomizeProps {
   onBack: () => void;
   onAddToCart: () => void;
   onApplyPreset: (preset: TerrainPreset) => void;
+  onSaveDesign?: () => void;
+  isSaving?: boolean;
 }
 
 type Tab = "plants" | "decorations";
@@ -129,6 +131,8 @@ export default function StepCustomize({
   onBack,
   onAddToCart,
   onApplyPreset,
+  onSaveDesign,
+  isSaving = false,
 }: StepCustomizeProps) {
   const [tab, setTab] = useState<Tab>("plants");
   const items = tab === "plants" ? PLANTS : DECORATIONS;
@@ -358,6 +362,17 @@ export default function StepCustomize({
         >
           Order This Terrarium
         </button>
+
+        {/* Save design */}
+        {onSaveDesign && (
+          <button
+            onClick={onSaveDesign}
+            disabled={isSaving}
+            className="w-full h-10 rounded-xl border border-grove-sage/40 text-grove-sage text-[0.72rem] tracking-[0.08em] uppercase font-medium hover:bg-grove-sage/10 hover:border-grove-sage/60 transition-all disabled:opacity-50 mb-2.5"
+          >
+            {isSaving ? "Saving…" : "Save Design"}
+          </button>
+        )}
 
         <button
           onClick={onBack}
