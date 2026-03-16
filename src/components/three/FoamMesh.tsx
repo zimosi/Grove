@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useMemo, useCallback, useEffect } from "react";
+import { useRef, useMemo, useCallback, useEffect, forwardRef, useImperativeHandle } from "react";
 import { useFrame } from "@react-three/fiber";
 import type { ThreeEvent } from "@react-three/fiber";
 import * as THREE from "three";
@@ -19,6 +19,11 @@ const GROW_MAX = 4.0;
 /** Cursor movement (in brushSize units) that resets the growing tip back to the surface */
 const MOVE_RESET_THRESHOLD = 0.55;
 
+export interface FoamHandle {
+  getField: () => Float32Array;
+  setField: (data: ArrayLike<number>) => void;
+}
+
 export interface FoamBrushRefs {
   pos: React.MutableRefObject<THREE.Vector3>;
   norm: React.MutableRefObject<THREE.Vector3>;
@@ -37,7 +42,7 @@ interface FoamMeshProps {
   onPlace?: (position: [number, number, number], normal: [number, number, number]) => void;
 }
 
-export default function FoamMesh({ brushRefs, toolMode, brushSize = 0.13, undoTrigger = 0, selectedItemId, onPlace }: FoamMeshProps) {
+const FoamMesh = forwardRef<FoamHandle, FoamMeshProps>(function FoamMesh({ brushRefs, toolMode, brushSize = 0.13, undoTrigger = 0, selectedItemId, onPlace }: FoamMeshProps, ref) {
   const isFoam = toolMode === "foam";
   const isSmooth = toolMode === "smooth";
   const isFoamActive = isFoam || isSmooth;
@@ -77,6 +82,17 @@ export default function FoamMesh({ brushRefs, toolMode, brushSize = 0.13, undoTr
     m.frustumCulled = false;
     return m;
   }, [mat]);
+
+  // ── Expose get/set for save & load ─────────────────────────────────────
+  useImperativeHandle(ref, () => ({
+    getField: () => mc.field.slice(),
+    setField: (data) => {
+      mc.field.set(data);
+      mc.normal_cache.fill(0);
+      mc.update();
+      mc.geometry.computeBoundingSphere();
+    },
+  }), [mc]);
 
   // ── Per-frame: directional foam growth + continuous smoothing ────────────
   useFrame(() => {
@@ -235,4 +251,6 @@ export default function FoamMesh({ brushRefs, toolMode, brushSize = 0.13, undoTr
       onClick={handleClick}
     />
   );
-}
+});
+
+export default FoamMesh;

@@ -102,6 +102,7 @@ export default function DesignsPage() {
 
   // Opening a design: navigate to builder with state in sessionStorage
   const handleOpen = (design: TerrariumRow) => {
+    // foamField is stored inside design.state — pass it all together
     sessionStorage.setItem("grove_load_state", JSON.stringify(design.state));
     router.push("/builder");
   };

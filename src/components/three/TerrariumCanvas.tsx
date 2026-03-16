@@ -11,7 +11,7 @@ import * as THREE from "three";
 import GlassContainer from "./GlassContainer";
 import TerrainMesh from "./TerrainMesh";
 import FoamMesh from "./FoamMesh";
-import type { FoamBrushRefs } from "./FoamMesh";
+import type { FoamBrushRefs, FoamHandle } from "./FoamMesh";
 import SceneItem from "./SceneItem";
 import type { BuilderState, ContainerShape } from "@/types";
 import { getCatalogItem, ALL_ITEMS } from "@/data/catalog";
@@ -89,6 +89,7 @@ interface TerrariumCanvasProps {
   presetTrigger?: number;
   foamBrushSize?: number;
   foamUndoTrigger?: number;
+  foamRef?: React.RefObject<FoamHandle | null>;
 }
 
 function SceneContent({
@@ -102,6 +103,7 @@ function SceneContent({
   presetTrigger,
   foamBrushSize = 0.13,
   foamUndoTrigger = 0,
+  foamRef,
 }: TerrariumCanvasProps & { terrainPreset: TerrainPreset | null; presetTrigger: number }) {
   // Heightmap lives here — 3D state, not React state
   const heightmapRef = useRef<Float32Array>(createHeightmap());
@@ -179,6 +181,7 @@ function SceneContent({
               />
             )}
             <FoamMesh
+              ref={foamRef}
               brushRefs={foamBrushRefs}
               toolMode={state.toolMode}
               brushSize={foamBrushSize}
@@ -230,6 +233,7 @@ export default function TerrariumCanvas({
   presetTrigger = 0,
   foamBrushSize = 0.13,
   foamUndoTrigger = 0,
+  foamRef,
 }: TerrariumCanvasProps) {
   return (
     <Canvas
@@ -257,6 +261,7 @@ export default function TerrariumCanvas({
         presetTrigger={presetTrigger}
         foamBrushSize={foamBrushSize}
         foamUndoTrigger={foamUndoTrigger}
+        foamRef={foamRef}
       />
     </Canvas>
   );

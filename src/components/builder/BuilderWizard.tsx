@@ -1,5 +1,5 @@
 "use client";
-import { useReducer, useCallback, useId, useRef, useState } from "react";
+import { useReducer, useCallback, useId, useRef, useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { builderReducer, initialState } from "@/lib/builderReducer";
 import StepContainer from "./StepContainer";
@@ -11,6 +11,7 @@ import type { TerrainPreset } from "@/lib/heightmap";
 import { useAuth } from "@/context/AuthContext";
 import AuthModal from "@/components/auth/AuthModal";
 import { getSupabase } from "@/lib/supabase";
+import type { FoamHandle } from "@/components/three/FoamMesh";
 
 const TerrariumCanvas = dynamic(
   () => import("@/components/three/TerrariumCanvas"),
@@ -43,7 +44,13 @@ function loadInitialState() {
     const raw = sessionStorage.getItem("grove_load_state");
     if (raw) {
       sessionStorage.removeItem("grove_load_state");
-      return JSON.parse(raw);
+      const parsed = JSON.parse(raw);
+      // Stash foam field separately so we can restore it after FoamMesh mounts
+      if (parsed.foamField) {
+        sessionStorage.setItem("grove_load_foam", JSON.stringify(parsed.foamField));
+        delete parsed.foamField;
+      }
+      return parsed;
     }
   } catch { /* ignore */ }
   return initialState;
@@ -63,6 +70,23 @@ export default function BuilderWizard() {
   const [authOpen, setAuthOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const foamRef = useRef<FoamHandle | null>(null);
+
+  // Restore foam field after FoamMesh mounts (when loading a saved design)
+  useEffect(() => {
+    const raw = sessionStorage.getItem("grove_load_foam");
+    if (!raw) return;
+    // Poll until foamRef is ready (canvas loads asynchronously)
+    const interval = setInterval(() => {
+      if (!foamRef.current) return;
+      try {
+        foamRef.current.setField(JSON.parse(raw));
+        sessionStorage.removeItem("grove_load_foam");
+      } catch { /* ignore */ }
+      clearInterval(interval);
+    }, 100);
+    return () => clearInterval(interval);
+  }, []);
 
   const doSave = useCallback(async () => {
     if (!user) { setAuthOpen(true); return; }
@@ -71,10 +95,11 @@ export default function BuilderWizard() {
     try {
       const sb = getSupabase();
       if (!sb) throw new Error("not configured");
+      const foamField = foamRef.current ? Array.from(foamRef.current.getField()) : null;
       const { error } = await sb.from("terrariums").insert({
         user_id: user.id,
         name: `Terrarium — ${new Date().toLocaleDateString()}`,
-        state: state as unknown as Record<string, unknown>,
+        state: { ...state, foamField } as unknown as Record<string, unknown>,
       });
       setSaveMessage(error ? "Save failed. Please try again." : "Design saved!");
     } catch {
@@ -258,6 +283,7 @@ export default function BuilderWizard() {
             presetTrigger={presetTrigger}
             foamBrushSize={foamBrushSize}
             foamUndoTrigger={foamUndoTrigger}
+            foamRef={foamRef}
           />
         ) : (
           /* Step 1 before any container selected */
