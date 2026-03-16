@@ -58,12 +58,14 @@ function GLBModel({
   scale,
   yOffset,
   isPlant,
+  autoCenter,
   clippingPlanes,
 }: {
   modelUrl: string;
   scale: number;
   yOffset: number;
   isPlant?: boolean;
+  autoCenter?: boolean;
   clippingPlanes?: THREE.Plane[];
 }) {
   const { scene } = useGLTF(modelUrl);
@@ -98,7 +100,19 @@ function GLBModel({
         }
       }
     });
-    cloned.current = clone;
+    if (autoCenter) {
+      // Re-center: shift so X/Z center = 0 and base (min Y) = 0.
+      // Wrapped in a Group so the primitive's position prop doesn't overwrite the offset.
+      const box = new THREE.Box3().setFromObject(clone);
+      const cx = (box.min.x + box.max.x) / 2;
+      const cz = (box.min.z + box.max.z) / 2;
+      clone.position.set(-cx, -box.min.y, -cz);
+      const wrapper = new THREE.Group();
+      wrapper.add(clone);
+      cloned.current = wrapper;
+    } else {
+      cloned.current = clone;
+    }
   }
 
   return (
@@ -227,6 +241,7 @@ export default function SceneItem({
             scale={catalogItem.scale}
             yOffset={catalogItem.yOffset}
             isPlant={catalogItem.category === "plant"}
+            autoCenter={catalogItem.autoCenter}
             clippingPlanes={clippingPlanes}
           />
         </Suspense>

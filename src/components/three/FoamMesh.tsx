@@ -7,11 +7,11 @@ import { MarchingCubes } from "three/examples/jsm/objects/MarchingCubes.js";
 import type { ToolMode } from "@/types";
 import { paintFoam, smoothFoam, FOAM_HX, FOAM_HY, FOAM_HZ, FOAM_Y_CENTER, FOAM_RES } from "@/lib/foam";
 
-const FOAM_COLOR = "#2a2a2a";
+const FOAM_COLOR = "#8a8a7a";
 /** Minimum ms between growth ticks while holding */
 const PAINT_INTERVAL_MS = 90;
 /** Base offset along surface normal so first blob appears on the surface, not inside */
-const STACK_OFFSET_FACTOR = 0.35;
+const STACK_OFFSET_FACTOR = 0.5;
 /** How far the growing tip advances per tick, in brushSize units */
 const GROW_STEP = 0.18;
 /** Maximum extension from click point, in brushSize units — prevents infinite growth */
@@ -162,10 +162,13 @@ export default function FoamMesh({ brushRefs, toolMode, brushSize = 0.13, undoTr
       brushRefs.pos.current.copy(e.point);
       if (e.face) {
         // Transform face normal from local mesh space to world space
-        brushRefs.norm.current
-          .copy(e.face.normal)
+        const n = e.face.normal.clone()
           .transformDirection(e.object.matrixWorld)
           .normalize();
+        // MarchingCubes uses DoubleSide — back faces have normals pointing
+        // toward the ray (inward). Flip those so we always get the outward normal.
+        if (e.ray.direction.dot(n) > 0) n.negate();
+        brushRefs.norm.current.copy(n);
       }
     },
     [brushRefs]

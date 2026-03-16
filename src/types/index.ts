@@ -12,6 +12,7 @@ export interface CatalogItem {
   scale: number;
   yOffset: number;
   clusterCount?: number; // how many to place in a cluster
+  autoCenter?: boolean; // re-center model so its base sits at the origin (for badly-exported GLBs)
   color: string; // fallback color dot
   iconUrl?: string; // botanical illustration shown in the sidebar list
 }
