@@ -188,6 +188,7 @@ function SceneContent({
               undoTrigger={foamUndoTrigger}
               selectedItemId={state.selectedItemId}
               onPlace={onPlace}
+              substrate={state.substrate}
             />
             {state.placedItems.map((placed) => {
               const item = getCatalogItem(placed.itemId);

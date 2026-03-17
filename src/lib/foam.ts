@@ -188,6 +188,53 @@ export function smoothFoam(
   }
 }
 
+/**
+ * Stamp paint into a separate paint field at world position (wx, wy, wz).
+ * The paint field has the same grid/coordinate system as the foam field.
+ * Values are 0 (foam color) → 1 (substrate color).
+ */
+export function stampPaint(
+  paintField: Float32Array,
+  wx: number,
+  wy: number,
+  wz: number,
+  brushRadius: number
+): void {
+  const S = FOAM_RES;
+
+  const csX = (2 * FOAM_HX) / S;
+  const csY = (2 * FOAM_HY) / S;
+  const csZ = (2 * FOAM_HZ) / S;
+
+  const fx = ((wx + FOAM_HX) / (2 * FOAM_HX)) * S;
+  const fy = ((wy - FOAM_Y_CENTER + FOAM_HY) / (2 * FOAM_HY)) * S;
+  const fz = ((wz + FOAM_HZ) / (2 * FOAM_HZ)) * S;
+
+  const minCs = Math.min(csX, csY, csZ);
+  const ceil_r = Math.ceil(brushRadius / minCs) + 1;
+  const r2 = brushRadius * brushRadius;
+
+  const cx = Math.round(fx);
+  const cy = Math.round(fy);
+  const cz = Math.round(fz);
+
+  for (let dz = -ceil_r; dz <= ceil_r; dz++) {
+    for (let dy = -ceil_r; dy <= ceil_r; dy++) {
+      for (let dx = -ceil_r; dx <= ceil_r; dx++) {
+        const ix = cx + dx;
+        const iy = cy + dy;
+        const iz = cz + dz;
+        if (ix < 0 || ix >= S || iy < 0 || iy >= S || iz < 0 || iz >= S) continue;
+
+        const wdx = dx * csX, wdy = dy * csY, wdz = dz * csZ;
+        if (wdx * wdx + wdy * wdy + wdz * wdz >= r2) continue;
+
+        paintField[ix + iy * S + iz * S * S] = 1.0;
+      }
+    }
+  }
+}
+
 /** Clear all foam. Call `mc.update()` after to show the empty mesh. */
 export function clearFoam(mc: { reset(): void; update(): void }): void {
   mc.reset();

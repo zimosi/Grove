@@ -137,7 +137,7 @@ export default function StepCustomize({
   const [tab, setTab] = useState<Tab>("plants");
   const items = tab === "plants" ? PLANTS : DECORATIONS;
   const isSculpt = toolMode === "sculpt";
-  const isFoam   = toolMode === "foam" || toolMode === "smooth";
+  const isFoam   = toolMode === "foam" || toolMode === "smooth" || toolMode === "paint";
   const hideItems = isSculpt || isFoam;
 
   return (
@@ -178,7 +178,7 @@ export default function StepCustomize({
       </div>
 
       {/* Foam panel — shown in foam or smooth mode */}
-      {(toolMode === "foam" || toolMode === "smooth") && (
+      {(toolMode === "foam" || toolMode === "smooth" || toolMode === "paint") && (
         <div className="mb-4 p-3 rounded-xl border border-sky-200 bg-sky-50/80 space-y-3">
           {/* Header */}
           <div className="flex items-center gap-2">
@@ -188,7 +188,7 @@ export default function StepCustomize({
             </span>
           </div>
 
-          {/* Paint / Smooth sub-mode toggle */}
+          {/* Paint / Smooth / Color sub-mode toggle */}
           <div className="flex gap-1.5 p-1 bg-white/70 rounded-lg border border-sky-200">
             <button
               onClick={() => onSetTool("foam")}
@@ -199,7 +199,7 @@ export default function StepCustomize({
                   : "text-sky-600 hover:bg-sky-100",
               ].join(" ")}
             >
-              🫧 Paint
+              🫧 Build
             </button>
             <button
               onClick={() => onSetTool("smooth")}
@@ -211,6 +211,17 @@ export default function StepCustomize({
               ].join(" ")}
             >
               ◌ Smooth
+            </button>
+            <button
+              onClick={() => onSetTool("paint")}
+              className={[
+                "flex-1 h-8 rounded-md text-[0.62rem] tracking-[0.06em] uppercase font-semibold transition-all",
+                toolMode === "paint"
+                  ? "bg-sky-500 text-white shadow-sm"
+                  : "text-sky-600 hover:bg-sky-100",
+              ].join(" ")}
+            >
+              🎨 Color
             </button>
           </div>
 
@@ -264,6 +275,8 @@ export default function StepCustomize({
           <p className="text-[0.6rem] text-sky-600/90 leading-relaxed">
             {toolMode === "smooth"
               ? "Hold & drag over bumpy areas to blend and flatten the surface."
+              : toolMode === "paint"
+              ? "Hold & drag on foam to paint it with your substrate color."
               : "Hold & drag on any surface to extrude foam. Rotate to build from any angle."}
           </p>
         </div>

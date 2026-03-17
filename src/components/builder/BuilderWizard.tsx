@@ -12,6 +12,8 @@ import { useAuth } from "@/context/AuthContext";
 import AuthModal from "@/components/auth/AuthModal";
 import { getSupabase } from "@/lib/supabase";
 import type { FoamHandle } from "@/components/three/FoamMesh";
+import SurveyModal from "@/components/survey/SurveyModal";
+import type { BuilderSnapshot } from "@/components/survey/SurveyModal";
 
 const TerrariumCanvas = dynamic(
   () => import("@/components/three/TerrariumCanvas"),
@@ -45,10 +47,14 @@ function loadInitialState() {
     if (raw) {
       sessionStorage.removeItem("grove_load_state");
       const parsed = JSON.parse(raw);
-      // Stash foam field separately so we can restore it after FoamMesh mounts
+      // Stash foam/paint fields separately so we can restore them after FoamMesh mounts
       if (parsed.foamField) {
         sessionStorage.setItem("grove_load_foam", JSON.stringify(parsed.foamField));
         delete parsed.foamField;
+      }
+      if (parsed.paintField) {
+        sessionStorage.setItem("grove_load_paint", JSON.stringify(parsed.paintField));
+        delete parsed.paintField;
       }
       return parsed;
     }
@@ -67,26 +73,40 @@ export default function BuilderWizard() {
   const handleFoamUndo = useCallback(() => setFoamUndoTrigger((n) => n + 1), []);
 
   const { user } = useAuth();
-  const [authOpen, setAuthOpen] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [authOpen,     setAuthOpen]     = useState(false);
+  const [isSaving,     setIsSaving]     = useState(false);
+  const [saveMessage,  setSaveMessage]  = useState<string | null>(null);
   const foamRef = useRef<FoamHandle | null>(null);
 
-  // Restore foam field after FoamMesh mounts (when loading a saved design)
+  // Survey state
+  const [surveyOpen,    setSurveyOpen]    = useState(false);
+  const [surveyTrigger, setSurveyTrigger] = useState<"order_click" | "save_design">("order_click");
+  const [surveyDesignId, setSurveyDesignId] = useState<string | null>(null);
+
+  // Restore foam + paint fields after FoamMesh mounts (when loading a saved design)
   useEffect(() => {
-    const raw = sessionStorage.getItem("grove_load_foam");
-    if (!raw) return;
+    const rawFoam  = sessionStorage.getItem("grove_load_foam");
+    const rawPaint = sessionStorage.getItem("grove_load_paint");
+    if (!rawFoam && !rawPaint) return;
     // Poll until foamRef is ready (canvas loads asynchronously)
     const interval = setInterval(() => {
       if (!foamRef.current) return;
       try {
-        foamRef.current.setField(JSON.parse(raw));
-        sessionStorage.removeItem("grove_load_foam");
+        if (rawFoam)  { foamRef.current.setField(JSON.parse(rawFoam));   sessionStorage.removeItem("grove_load_foam"); }
+        if (rawPaint) { foamRef.current.setPaintField(JSON.parse(rawPaint)); sessionStorage.removeItem("grove_load_paint"); }
       } catch { /* ignore */ }
       clearInterval(interval);
     }, 100);
     return () => clearInterval(interval);
   }, []);
+
+  /** Compact summary of current design — stored alongside survey responses */
+  const buildSnapshot = useCallback(() => ({
+    container:  state.container,
+    substrate:  state.substrate,
+    itemCount:  state.placedItems.length,
+    totalPrice: state.totalPrice,
+  }), [state]);
 
   const doSave = useCallback(async () => {
     if (!user) { setAuthOpen(true); return; }
@@ -95,13 +115,19 @@ export default function BuilderWizard() {
     try {
       const sb = getSupabase();
       if (!sb) throw new Error("not configured");
-      const foamField = foamRef.current ? Array.from(foamRef.current.getField()) : null;
-      const { error } = await sb.from("terrariums").insert({
+      const foamField  = foamRef.current ? Array.from(foamRef.current.getField())      : null;
+      const paintField = foamRef.current ? Array.from(foamRef.current.getPaintField()) : null;
+      const { data, error } = await sb.from("terrariums").insert({
         user_id: user.id,
         name: `Terrarium — ${new Date().toLocaleDateString()}`,
-        state: { ...state, foamField } as unknown as Record<string, unknown>,
-      });
-      setSaveMessage(error ? "Save failed. Please try again." : "Design saved!");
+        state: { ...state, foamField, paintField } as unknown as Record<string, unknown>,
+      }).select("id").single();
+      if (error) throw error;
+      setSaveMessage("Design saved!");
+      // Open survey after successful save
+      setSurveyDesignId(data?.id ?? null);
+      setSurveyTrigger("save_design");
+      setSurveyOpen(true);
     } catch {
       setSaveMessage("Save failed. Please try again.");
     } finally {
@@ -243,7 +269,11 @@ export default function BuilderWizard() {
               onFoamUndo={handleFoamUndo}
               onUndo={() => dispatch({ type: "UNDO" })}
               onBack={() => dispatch({ type: "PREV_STEP" })}
-              onAddToCart={() => alert(`Order placed! Total: $${state.totalPrice.toFixed(2)}`)}
+              onAddToCart={() => {
+                setSurveyDesignId(null);
+                setSurveyTrigger("order_click");
+                setSurveyOpen(true);
+              }}
               onApplyPreset={handleApplyPreset}
               onSaveDesign={doSave}
               isSaving={isSaving}
@@ -391,6 +421,17 @@ export default function BuilderWizard() {
           </div>
         )}
 
+        {/* Paint mode indicator */}
+        {state.step === 3 && state.toolMode === "paint" && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 pointer-events-none">
+            <div className="px-4 py-2.5 rounded-full bg-sky-50 border border-sky-200 shadow-sm backdrop-blur-sm">
+              <span className="text-[0.68rem] tracking-[0.08em] text-sky-800 font-medium">
+                Hold &amp; drag on foam to paint substrate color
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* Foam mode indicator */}
         {state.step === 3 && state.toolMode === "foam" && (
           <div className="absolute top-4 left-1/2 -translate-x-1/2 pointer-events-none">
@@ -416,6 +457,16 @@ export default function BuilderWizard() {
 
       {/* Auth modal — opened when guest tries to save */}
       <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
+
+      {/* Survey modal — triggered after Order or Save Design */}
+      <SurveyModal
+        open={surveyOpen}
+        onClose={() => setSurveyOpen(false)}
+        triggerAction={surveyTrigger}
+        builderSnapshot={buildSnapshot()}
+        designId={surveyDesignId}
+        userId={user?.id ?? null}
+      />
 
       {/* Save feedback toast */}
       {saveMessage && (

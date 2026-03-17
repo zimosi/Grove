@@ -1,6 +1,6 @@
 export type ContainerShape = "jar" | "tank";
 export type SubstrateType = "sand" | "soil";
-export type ToolMode = "place" | "remove" | "sculpt" | "foam" | "smooth";
+export type ToolMode = "place" | "remove" | "sculpt" | "foam" | "smooth" | "paint";
 export type WizardStep = 1 | 2 | 3;
 
 export interface CatalogItem {

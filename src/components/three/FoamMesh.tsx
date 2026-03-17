@@ -5,9 +5,14 @@ import type { ThreeEvent } from "@react-three/fiber";
 import * as THREE from "three";
 import { MarchingCubes } from "three/examples/jsm/objects/MarchingCubes.js";
 import type { ToolMode } from "@/types";
-import { paintFoam, smoothFoam, FOAM_HX, FOAM_HY, FOAM_HZ, FOAM_Y_CENTER, FOAM_RES } from "@/lib/foam";
+import { paintFoam, smoothFoam, stampPaint, FOAM_HX, FOAM_HY, FOAM_HZ, FOAM_Y_CENTER, FOAM_RES } from "@/lib/foam";
 
-const FOAM_COLOR = "#8a8a7a";
+const FOAM_COLOR_HEX = "#8a8a7a";
+const SUBSTRATE_COLORS: Record<string, string> = {
+  soil: "#7a5c2e",
+  sand: "#c8a96e",
+};
+
 /** Minimum ms between growth ticks while holding */
 const PAINT_INTERVAL_MS = 90;
 /** Base offset along surface normal so first blob appears on the surface, not inside */
@@ -22,12 +27,19 @@ const MOVE_RESET_THRESHOLD = 0.55;
 export interface FoamHandle {
   getField: () => Float32Array;
   setField: (data: ArrayLike<number>) => void;
+  getPaintField: () => Float32Array;
+  setPaintField: (data: ArrayLike<number>) => void;
 }
 
 export interface FoamBrushRefs {
   pos: React.MutableRefObject<THREE.Vector3>;
   norm: React.MutableRefObject<THREE.Vector3>;
   holding: React.MutableRefObject<boolean>;
+}
+
+interface Snapshot {
+  field: Float32Array;
+  paint: Float32Array;
 }
 
 const MAX_HISTORY = 20;
@@ -40,38 +52,86 @@ interface FoamMeshProps {
   /** When in place mode, allow placing plants/decorations on foam surface */
   selectedItemId?: string | null;
   onPlace?: (position: [number, number, number], normal: [number, number, number]) => void;
+  substrate?: string | null;
 }
 
-const FoamMesh = forwardRef<FoamHandle, FoamMeshProps>(function FoamMesh({ brushRefs, toolMode, brushSize = 0.13, undoTrigger = 0, selectedItemId, onPlace }: FoamMeshProps, ref) {
-  const isFoam = toolMode === "foam";
+/**
+ * Map each MC vertex (local coords in [-1,1]) to its paint field cell and
+ * write a lerped color between foamCol and substrateCol.
+ */
+function applyVertexColors(
+  mc: MarchingCubes,
+  paintField: Float32Array,
+  foamCol: THREE.Color,
+  subCol: THREE.Color
+) {
+  const geo = mc.geometry;
+  const posAttr = geo.attributes.position as THREE.BufferAttribute | undefined;
+  if (!posAttr || posAttr.count === 0) return;
+  const count = posAttr.count;
+  const pos = posAttr.array as Float32Array;
+
+  let attr = geo.attributes.color as THREE.BufferAttribute | undefined;
+  if (!attr || attr.count !== count) {
+    attr = new THREE.BufferAttribute(new Float32Array(count * 3), 3);
+    geo.setAttribute("color", attr);
+  }
+  const col = attr.array as Float32Array;
+  const S = FOAM_RES;
+
+  for (let i = 0; i < count; i++) {
+    // MC local coords are in [-1, 1]; map to [0, S] paint field indices
+    const ix = Math.min(S - 1, Math.max(0, Math.round((pos[i * 3]     + 1) * 0.5 * S)));
+    const iy = Math.min(S - 1, Math.max(0, Math.round((pos[i * 3 + 1] + 1) * 0.5 * S)));
+    const iz = Math.min(S - 1, Math.max(0, Math.round((pos[i * 3 + 2] + 1) * 0.5 * S)));
+
+    const p = paintField[ix + iy * S + iz * S * S];
+    col[i * 3]     = foamCol.r + (subCol.r - foamCol.r) * p;
+    col[i * 3 + 1] = foamCol.g + (subCol.g - foamCol.g) * p;
+    col[i * 3 + 2] = foamCol.b + (subCol.b - foamCol.b) * p;
+  }
+  attr.needsUpdate = true;
+}
+
+const FoamMesh = forwardRef<FoamHandle, FoamMeshProps>(function FoamMesh(
+  { brushRefs, toolMode, brushSize = 0.13, undoTrigger = 0, selectedItemId, onPlace, substrate }: FoamMeshProps,
+  ref
+) {
+  const isFoam   = toolMode === "foam";
   const isSmooth = toolMode === "smooth";
-  const isFoamActive = isFoam || isSmooth;
-  const isPlace = toolMode === "place";
-  const lastPaintTime = useRef(0);
-  const historyRef = useRef<Float32Array[]>([]);
-  // Growing-tip state: how far along the normal the current stroke has extended
-  const growOffsetRef = useRef(0);
-  // Last painted position — used to detect cursor movement and reset the tip
+  const isPaint  = toolMode === "paint";
+  const isFoamActive = isFoam || isSmooth || isPaint;
+  const isPlace  = toolMode === "place";
+
+  const lastPaintTime  = useRef(0);
+  const historyRef     = useRef<Snapshot[]>([]);
+  const growOffsetRef  = useRef(0);
   const lastPaintPosRef = useRef(new THREE.Vector3());
-  // Whether the previous frame was also holding — detects new hold sessions
-  const wasHoldingRef = useRef(false);
+  const wasHoldingRef  = useRef(false);
+
+  // Separate 3-D paint field — same grid as the foam field
+  const paintFieldRef = useRef(new Float32Array(FOAM_RES * FOAM_RES * FOAM_RES));
+
+  const foamColor = useMemo(() => new THREE.Color(FOAM_COLOR_HEX), []);
+  const substrateColor = useMemo(
+    () => new THREE.Color(SUBSTRATE_COLORS[substrate ?? "soil"] ?? FOAM_COLOR_HEX),
+    [substrate]
+  );
 
   const mat = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
-        color: FOAM_COLOR,
-        roughness: 0.35,
-        metalness: 0.25,
+        vertexColors: true,
+        roughness: 0.6,
+        metalness: 0.1,
         transparent: false,
         side: THREE.DoubleSide,
         depthWrite: true,
-        envMapIntensity: 0.9,
+        envMapIntensity: 0.6,
       }),
     []
   );
 
-  // MarchingCubes is the foam's geometry and data store in one.
-  // Its field persists between frames — painting just stamps values in.
   const mc = useMemo(() => {
     const m = new MarchingCubes(FOAM_RES, mat, false, false, 60000);
     m.isolation = 80;
@@ -83,32 +143,39 @@ const FoamMesh = forwardRef<FoamHandle, FoamMeshProps>(function FoamMesh({ brush
     return m;
   }, [mat]);
 
+  // ── Helper: update + recolor ─────────────────────────────────────────────
+  const mcUpdate = useCallback(() => {
+    mc.update();
+    mc.geometry.computeBoundingSphere();
+    applyVertexColors(mc, paintFieldRef.current, foamColor, substrateColor);
+  }, [mc, foamColor, substrateColor]);
+
   // ── Expose get/set for save & load ─────────────────────────────────────
   useImperativeHandle(ref, () => ({
     getField: () => mc.field.slice(),
     setField: (data) => {
       mc.field.set(data);
       mc.normal_cache.fill(0);
-      mc.update();
-      mc.geometry.computeBoundingSphere();
+      mcUpdate();
     },
-  }), [mc]);
+    getPaintField: () => paintFieldRef.current.slice(),
+    setPaintField: (data) => {
+      paintFieldRef.current.set(data);
+      applyVertexColors(mc, paintFieldRef.current, foamColor, substrateColor);
+    },
+  }), [mc, mcUpdate, foamColor, substrateColor]);
 
-  // ── Per-frame: directional foam growth + continuous smoothing ────────────
+  // ── Per-frame: foam growth, smoothing, or paint ──────────────────────────
   useFrame(() => {
     if (!isFoamActive || !brushRefs.holding.current) {
       wasHoldingRef.current = false;
       return;
     }
 
-    // Detect new hold session (first frame of this click/drag)
     const isNewSession = !wasHoldingRef.current;
     if (isNewSession) {
       growOffsetRef.current = 0;
       lastPaintPosRef.current.copy(brushRefs.pos.current);
-      // Reset timer so the first tick fires immediately regardless of how
-      // recently the previous session ended — fixes the "can't stack" issue
-      // where a quick re-click missed the interval window and painted nothing.
       lastPaintTime.current = 0;
     }
     wasHoldingRef.current = true;
@@ -117,24 +184,17 @@ const FoamMesh = forwardRef<FoamHandle, FoamMeshProps>(function FoamMesh({ brush
     if (now - lastPaintTime.current < PAINT_INTERVAL_MS) return;
     lastPaintTime.current = now;
 
-    const pos = brushRefs.pos.current;
+    const pos  = brushRefs.pos.current;
     const norm = brushRefs.norm.current;
 
     if (isFoam) {
-      // Reset growing tip if cursor moved significantly (new surface area)
       const moved = pos.distanceTo(lastPaintPosRef.current);
-      if (moved > brushSize * MOVE_RESET_THRESHOLD) {
-        growOffsetRef.current = 0;
-      }
+      if (moved > brushSize * MOVE_RESET_THRESHOLD) growOffsetRef.current = 0;
       lastPaintPosRef.current.copy(pos);
 
-      // Paint at the current growing tip along the surface normal
       const off = STACK_OFFSET_FACTOR * brushSize + growOffsetRef.current;
       paintFoam(mc, pos.x + norm.x * off, pos.y + norm.y * off, pos.z + norm.z * off, brushSize);
-      mc.update();
-      mc.geometry.computeBoundingSphere();
-
-      // Advance tip for next tick — stops when cap is reached
+      mcUpdate();
       growOffsetRef.current = Math.min(
         growOffsetRef.current + brushSize * GROW_STEP,
         brushSize * GROW_MAX
@@ -142,13 +202,20 @@ const FoamMesh = forwardRef<FoamHandle, FoamMeshProps>(function FoamMesh({ brush
       return;
     }
 
-    // Smooth: continuous while held
-    smoothFoam(mc, pos.x, pos.y, pos.z, brushSize);
-    mc.update();
-    mc.geometry.computeBoundingSphere();
+    if (isSmooth) {
+      smoothFoam(mc, pos.x, pos.y, pos.z, brushSize);
+      mcUpdate();
+      return;
+    }
+
+    // Paint mode — only update vertex colors, not the MC field
+    if (isPaint) {
+      stampPaint(paintFieldRef.current, pos.x, pos.y, pos.z, brushSize);
+      applyVertexColors(mc, paintFieldRef.current, foamColor, substrateColor);
+    }
   });
 
-  // ── Release brush when tool changes away from foam/smooth ─────────────
+  // ── Release brush when tool changes away from foam/smooth/paint ──────────
   useEffect(() => {
     if (!isFoamActive) brushRefs.holding.current = false;
   }, [toolMode, brushRefs, isFoamActive]);
@@ -156,19 +223,18 @@ const FoamMesh = forwardRef<FoamHandle, FoamMeshProps>(function FoamMesh({ brush
   // ── Undo: restore last snapshot ────────────────────────────────────────
   useEffect(() => {
     if (undoTrigger === 0) return;
-    const history = historyRef.current;
-    if (history.length === 0) return;
-    const snapshot = history.pop()!;
-    mc.field.set(snapshot);
+    const snap = historyRef.current.pop();
+    if (!snap) return;
+    mc.field.set(snap.field);
+    paintFieldRef.current.set(snap.paint);
     mc.normal_cache.fill(0);
-    mc.update();
-    mc.geometry.computeBoundingSphere();
+    mcUpdate();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [undoTrigger]);
 
   // ── Snapshot helpers ───────────────────────────────────────────────────
   const saveSnapshot = useCallback(() => {
-    historyRef.current.push(mc.field.slice());
+    historyRef.current.push({ field: mc.field.slice(), paint: paintFieldRef.current.slice() });
     if (historyRef.current.length > MAX_HISTORY) historyRef.current.shift();
   }, [mc]);
 
@@ -177,12 +243,9 @@ const FoamMesh = forwardRef<FoamHandle, FoamMeshProps>(function FoamMesh({ brush
     (e: ThreeEvent<PointerEvent | MouseEvent>) => {
       brushRefs.pos.current.copy(e.point);
       if (e.face) {
-        // Transform face normal from local mesh space to world space
         const n = e.face.normal.clone()
           .transformDirection(e.object.matrixWorld)
           .normalize();
-        // MarchingCubes uses DoubleSide — back faces have normals pointing
-        // toward the ray (inward). Flip those so we always get the outward normal.
         if (e.ray.direction.dot(n) > 0) n.negate();
         brushRefs.norm.current.copy(n);
       }
@@ -204,7 +267,6 @@ const FoamMesh = forwardRef<FoamHandle, FoamMeshProps>(function FoamMesh({ brush
     (e: ThreeEvent<PointerEvent>) => {
       if (!isFoamActive) return;
       e.stopPropagation();
-      // Snapshot before this stroke so it can be undone as one unit
       saveSnapshot();
       updateBrushPos(e);
       brushRefs.holding.current = true;
@@ -230,7 +292,6 @@ const FoamMesh = forwardRef<FoamHandle, FoamMeshProps>(function FoamMesh({ brush
       if (!isPlace || !selectedItemId || !onPlace) return;
       e.stopPropagation();
       const { x, y, z } = e.point;
-      // Transform face normal to world space so placed items tilt with the foam surface
       let normal: [number, number, number] = [0, 1, 0];
       if (e.face) {
         const n = e.face.normal.clone().transformDirection(e.object.matrixWorld).normalize();

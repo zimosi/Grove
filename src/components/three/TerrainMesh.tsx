@@ -334,14 +334,19 @@ export default function TerrainMesh({
       tankWallGeos.right.computeVertexNormals();
     }
 
-    // ── Jar: uniform cylinder fill — use max border height ─────────────────
+    // ── Jar: uniform cylinder fill — sample the actual circular perimeter ──
+    // Previously used rectangular grid edges which are outside the circle,
+    // causing the fill to jump whenever spreading reached those cells.
     if (shape === "jar") {
       const fill = jarFillRef.current;
       if (fill) {
-        const G = GRID_SIZE;
         let maxEdgeH = BASE_HEIGHT;
-        for (let k = 0; k < G; k++) {
-          maxEdgeH = Math.max(maxEdgeH, hm[k], hm[k + (G - 1) * G], hm[k * G], hm[k * G + G - 1]);
+        for (let ai = 0; ai < JAR_ANGULAR; ai++) {
+          const a = (ai / JAR_ANGULAR) * Math.PI * 2;
+          maxEdgeH = Math.max(
+            maxEdgeH,
+            getHeightAt(hm, "jar", JAR_R * Math.cos(a), JAR_R * Math.sin(a))
+          );
         }
         fill.scale.y = maxEdgeH;
         fill.position.y = yBase + maxEdgeH * 0.5;

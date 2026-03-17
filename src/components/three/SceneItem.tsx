@@ -49,7 +49,7 @@ interface SceneItemProps {
   onSelectPlaced?: (id: string) => void;
   onRotatePlaced?: (id: string, rotationY: number) => void;
   isSelected?: boolean;
-  toolMode?: "place" | "remove" | "sculpt" | "foam" | "smooth";
+  toolMode?: "place" | "remove" | "sculpt" | "foam" | "smooth" | "paint";
   clippingPlanes?: THREE.Plane[];
 }
 
@@ -85,7 +85,7 @@ function GLBModel({
             // which corrupts the WebGL shader and drops the mesh from shadow maps.
             if (!(m instanceof THREE.MeshStandardMaterial)) return;
             if (isPlant) {
-              m.roughness = Math.max(m.roughness * 0.75, 0.55);
+              m.roughness = Math.min(m.roughness * 0.55, 0.38); // waxy leaf sheen
               m.metalness = 0;
               m.envMapIntensity = 0.8;
             } else {
