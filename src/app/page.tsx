@@ -41,21 +41,14 @@ export default function HomePage() {
         <p className="grove-step-label mb-6 tracking-[0.3em]">Living Terrarium Studio</p>
 
         {/* Main headline */}
-        <h1 className="grove-heading text-[clamp(3rem,8vw,6.5rem)] leading-[1.05] max-w-3xl mb-8">
-          Build miniature
+        <h1 className="grove-heading text-[clamp(2.4rem,6vw,5rem)] leading-[1.1] max-w-3xl mb-28 whitespace-nowrap">
+          Build your own living world
           <br />
-          worlds that breathe.
+          and watch it grow.
         </h1>
 
-        {/* Sub-headline */}
-        <p className="text-[1.05rem] grove-body max-w-lg mb-12 leading-relaxed">
-          Design handcrafted glass terrariums in 3D — sculpt the terrain, paint
-          foam rockwork, plant rare species, and order a bespoke ecosystem made
-          just for you.
-        </p>
-
         {/* CTAs */}
-        <div className="flex flex-wrap gap-3 justify-center">
+        <div className="flex flex-wrap gap-3 justify-center mt-10">
           <Link
             href="/builder"
             className="inline-flex items-center h-13 px-8 rounded-2xl bg-grove-sage text-white text-[0.82rem] tracking-[0.1em] uppercase font-semibold hover:bg-grove-moss shadow-md active:scale-[0.98] transition-all duration-200"
@@ -64,7 +57,7 @@ export default function HomePage() {
           </Link>
           <Link
             href="/plants"
-            className="inline-flex items-center h-13 px-8 rounded-2xl border border-grove-border bg-white/80 text-grove-text text-[0.82rem] tracking-[0.08em] uppercase font-medium hover:border-grove-sage/40 hover:bg-white transition-all duration-200"
+            className="inline-flex items-center h-13 px-8 rounded-2xl border-2 border-white/60 text-white text-[0.82rem] tracking-[0.08em] uppercase font-semibold hover:border-white hover:bg-white/10 transition-all duration-200"
           >
             Shop Plants
           </Link>

@@ -117,17 +117,18 @@ export default function SurveyModal({
         {step === "success" && (
           <div className="px-8 py-14 flex flex-col items-center text-center">
             <div className="text-5xl mb-5">🌿</div>
-            <h2 className="text-[1.5rem] font-semibold text-grove-text mb-2 tracking-tight">
+            <h2 className="text-[1.5rem] font-semibold mb-2 tracking-tight" style={{ color: "#111" }}>
               Thanks so much!
             </h2>
-            <p className="text-[0.85rem] text-grove-muted leading-relaxed">
+            <p className="text-[0.85rem] leading-relaxed" style={{ color: "#6b7280" }}>
               {email.trim()
                 ? "We'll keep you posted on our launch."
                 : "Your feedback helps us build something great."}
             </p>
             <button
               onClick={onClose}
-              className="mt-8 h-11 px-8 rounded-2xl bg-grove-sage text-white text-[0.8rem] font-semibold hover:bg-grove-moss transition-colors"
+              className="mt-8 h-11 px-8 rounded-2xl text-white text-[0.8rem] font-semibold transition-colors"
+              style={{ background: "#5cbf75" }}
             >
               Back to builder
             </button>
@@ -144,24 +145,27 @@ export default function SurveyModal({
               {/* Close */}
               <button
                 onClick={onClose}
-                className="absolute top-5 right-5 w-7 h-7 rounded-full flex items-center justify-center text-grove-muted hover:text-grove-text hover:bg-grove-bg transition-colors text-sm"
+                className="absolute top-5 right-5 w-7 h-7 rounded-full flex items-center justify-center transition-colors text-sm"
+                style={{ color: "#9ca3af" }}
+                onMouseEnter={e => (e.currentTarget.style.color = "#374151")}
+                onMouseLeave={e => (e.currentTarget.style.color = "#9ca3af")}
               >
                 ✕
               </button>
 
               {/* Header */}
               <div className="mb-8">
-                <h2 className="text-[1.4rem] font-semibold text-grove-text tracking-tight mb-1.5">
+                <h2 className="text-[1.4rem] font-semibold tracking-tight mb-1.5" style={{ color: "#111827" }}>
                   How was your experience?
                 </h2>
-                <p className="text-[0.82rem] text-grove-muted">
+                <p className="text-[0.82rem]" style={{ color: "#6b7280" }}>
                   Takes 20 seconds · helps us improve
                 </p>
               </div>
 
               {/* ── Star rating ── */}
               <div className="mb-8">
-                <p className="text-[0.7rem] font-semibold text-grove-text/50 uppercase tracking-widest mb-4">
+                <p className="text-[0.7rem] font-semibold uppercase tracking-widest mb-4" style={{ color: "#9ca3af" }}>
                   Your rating
                 </p>
                 <div
@@ -177,15 +181,15 @@ export default function SurveyModal({
                         onMouseEnter={() => setHoverRating(n)}
                         className="flex-1 flex flex-col items-center gap-2 py-4 rounded-2xl border-2 transition-all duration-150 select-none"
                         style={{
-                          borderColor: active ? "#4a7c59" : "rgba(28,33,30,0.08)",
+                          borderColor: active ? "#4a7c59" : "#e5e7eb",
                           background:  active ? "rgba(74,124,89,0.08)" : "white",
                           transform:   active ? "scale(1.06)" : "scale(1)",
                         }}
                       >
-                        <span className={["text-[1.3rem] leading-none", active ? "text-grove-sage" : "text-grove-muted/30"].join(" ")}>
+                        <span className="text-[1.3rem] leading-none" style={{ color: active ? "#5cbf75" : "#d1d5db" }}>
                           {active ? "★" : "☆"}
                         </span>
-                        <span className={["text-[0.6rem] font-semibold tabular-nums", active ? "text-grove-sage" : "text-grove-muted/40"].join(" ")}>
+                        <span className="text-[0.6rem] font-semibold tabular-nums" style={{ color: active ? "#5cbf75" : "#9ca3af" }}>
                           {n}
                         </span>
                       </button>
@@ -194,7 +198,7 @@ export default function SurveyModal({
                 </div>
                 <div className="h-5 mt-2.5 text-center">
                   {displayRating && (
-                    <p className="text-[0.78rem] text-grove-sage font-medium">
+                    <p className="text-[0.78rem] font-medium" style={{ color: "#5cbf75" }}>
                       {RATING_LABEL[displayRating]}
                     </p>
                   )}
@@ -203,20 +207,24 @@ export default function SurveyModal({
 
               {/* ── Purchase intent ── */}
               <div className="mb-8">
-                <p className="text-[0.7rem] font-semibold text-grove-text/50 uppercase tracking-widest mb-4">
+                <p className="text-[0.7rem] font-semibold uppercase tracking-widest mb-4" style={{ color: "#9ca3af" }}>
                   Would you buy this?
                 </p>
                 <div className="flex gap-2.5">
-                  {INTENT_OPTIONS.map(({ value, label, activeClass }) => (
+                  {INTENT_OPTIONS.map(({ value, label }) => (
                     <button
                       key={value}
                       onClick={() => setIntent(value)}
-                      className={[
-                        "flex-1 py-4 rounded-2xl border-2 text-center transition-all duration-150 text-[0.78rem] font-semibold",
-                        intent === value
-                          ? activeClass
-                          : "border-grove-border bg-white text-grove-muted hover:border-grove-muted/30 hover:text-grove-text",
-                      ].join(" ")}
+                      className="flex-1 py-4 rounded-2xl border-2 text-center transition-all duration-150 text-[0.78rem] font-semibold"
+                      style={intent === value ? {
+                        borderColor: "#5cbf75",
+                        background: "#5cbf75",
+                        color: "#fff",
+                      } : {
+                        borderColor: "#e5e7eb",
+                        background: "white",
+                        color: "#374151",
+                      }}
                     >
                       {label}
                     </button>
@@ -226,15 +234,16 @@ export default function SurveyModal({
 
               {/* ── Feedback ── */}
               <div className="mb-4">
-                <p className="text-[0.7rem] font-semibold text-grove-text/50 uppercase tracking-widest mb-4">
-                  Any feedback? <span className="normal-case font-normal tracking-normal text-grove-muted/60">optional</span>
+                <p className="text-[0.7rem] font-semibold uppercase tracking-widest mb-4" style={{ color: "#9ca3af" }}>
+                  Any feedback? <span className="normal-case font-normal tracking-normal" style={{ color: "#d1d5db" }}>optional</span>
                 </p>
                 <textarea
                   value={feedbackText}
                   onChange={(e) => setFeedbackText(e.target.value)}
                   placeholder="What would make this better?"
                   rows={2}
-                  className="w-full rounded-2xl border border-grove-border bg-grove-bg/50 px-4 py-3.5 text-[0.85rem] text-grove-text placeholder:text-grove-muted/40 outline-none focus:border-grove-sage/50 focus:bg-white transition-all resize-none"
+                  className="w-full rounded-2xl px-4 py-3.5 text-[0.85rem] outline-none transition-all resize-none"
+                  style={{ border: "1px solid #e5e7eb", background: "#f9fafb", color: "#111827" }}
                 />
               </div>
 
@@ -245,7 +254,8 @@ export default function SurveyModal({
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder={isOrderFlow ? "Email — notify me at launch (optional)" : "Email — stay updated (optional)"}
-                  className="w-full rounded-2xl border border-grove-border bg-grove-bg/50 px-4 py-3.5 text-[0.85rem] text-grove-text placeholder:text-grove-muted/40 outline-none focus:border-grove-sage/50 focus:bg-white transition-all"
+                  className="w-full rounded-2xl px-4 py-3.5 text-[0.85rem] outline-none transition-all"
+                  style={{ border: "1px solid #e5e7eb", background: "#f9fafb", color: "#111827" }}
                 />
               </div>
 
@@ -257,21 +267,25 @@ export default function SurveyModal({
               <div className="flex items-center gap-3">
                 <button
                   onClick={onClose}
-                  className="text-grove-muted text-[0.78rem] font-medium hover:text-grove-text transition-colors px-1"
+                  className="text-[0.78rem] font-medium transition-colors px-1"
+                  style={{ color: "#9ca3af" }}
+                  onMouseEnter={e => (e.currentTarget.style.color = "#374151")}
+                  onMouseLeave={e => (e.currentTarget.style.color = "#9ca3af")}
                 >
                   Skip
                 </button>
                 <button
                   onClick={handleSubmit}
                   disabled={!canSubmit || submitting}
-                  className="flex-1 h-12 rounded-2xl bg-grove-sage text-white text-[0.82rem] font-semibold hover:bg-grove-moss active:scale-[0.98] transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="flex-1 h-12 rounded-2xl text-white text-[0.82rem] font-semibold active:scale-[0.98] transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                  style={{ background: "#5cbf75" }}
                 >
                   {submitting ? "Saving…" : isOrderFlow ? "Submit & Notify Me" : "Submit Feedback"}
                 </button>
               </div>
 
               {!canSubmit && (
-                <p className="text-[0.62rem] text-grove-muted/35 text-center mt-3">
+                <p className="text-[0.62rem] text-center mt-3" style={{ color: "#d1d5db" }}>
                   Select a rating and intent to continue
                 </p>
               )}

@@ -102,10 +102,38 @@ export function relaxSlope(
 
   const icx = (cx + originX) / spanX * (G - 1);
   const icz = (cz + originZ) / spanZ * (G - 1);
-  // 5× radius so soil can flow far enough to create natural spreading
-  const iRad = (radius * 5.0 / spanX) * (G - 1);
-  const jRad = (radius * 5.0 / spanZ) * (G - 1);
+  // 2× radius — wide enough for natural mounding but prevents the relax region
+  // from covering the entire jar every frame (which caused global equilibration
+  // and made the whole terrain rise when soil touched the wall).
+  const iRad = (radius * 2.0 / spanX) * (G - 1);
+  const jRad = (radius * 2.0 / spanZ) * (G - 1);
 
+  const jarR2     = JAR_R * JAR_R;
+  // The outer 8% ring of the jar is the "wall zone" — it receives soil but
+  // never pushes it back inward.  This prevents reflected backflow that made
+  // the entire terrain rise when soil accumulated at the glass wall.
+  const jarWallR2 = (JAR_R * 0.92) * (JAR_R * 0.92);
+
+  // Step 1 — wipe phantom cells (outside the circle) in the full scan band.
+  // Done before relaxation so corrupted values never enter bilinear sampling.
+  // Use a wider scan (0..G-1) just for the reset pass, keeping the relax
+  // loop below at 1..G-2 so grid-border cells stay receive-only like the tank.
+  if (shape === "jar") {
+    const fi0 = Math.max(0, Math.floor(icx - iRad));
+    const fi1 = Math.min(G - 1, Math.ceil(icx + iRad));
+    const fj0 = Math.max(0, Math.floor(icz - jRad));
+    const fj1 = Math.min(G - 1, Math.ceil(icz + jRad));
+    for (let j = fj0; j <= fj1; j++) {
+      for (let i = fi0; i <= fi1; i++) {
+        const { x: wx, z: wz } = normToWorld(shape, i / (G - 1), j / (G - 1));
+        if (wx * wx + wz * wz > jarR2) hm[i + j * G] = BASE_HEIGHT;
+      }
+    }
+  }
+
+  // Step 2 — angle-of-repose relaxation on interior cells only (1..G-2).
+  // Grid-border cells (i=0, i=G-1, j=0, j=G-1) are intentionally excluded
+  // as source cells so they can't push soil back, matching the tank behaviour.
   const i0 = Math.max(1, Math.floor(icx - iRad));
   const i1 = Math.min(G - 2, Math.ceil(icx + iRad));
   const j0 = Math.max(1, Math.floor(icz - jRad));
@@ -114,16 +142,30 @@ export function relaxSlope(
   for (let iter = 0; iter < iterations; iter++) {
     for (let j = j0; j <= j1; j++) {
       for (let i = i0; i <= i1; i++) {
-        const idx = i + j * G;
-        const h = hm[idx];
+        if (shape === "jar") {
+          const { x: wx, z: wz } = normToWorld(shape, i / (G - 1), j / (G - 1));
+          const d2 = wx * wx + wz * wz;
+          if (d2 > jarR2)     { hm[i + j * G] = BASE_HEIGHT; continue; } // phantom
+          if (d2 > jarWallR2) { continue; } // wall zone: receive-only, skip as source
+        }
 
-        // 4-connected neighbours
-        const neighbours = [i + 1 + j * G, i - 1 + j * G, i + (j + 1) * G, i + (j - 1) * G];
-        for (const nidx of neighbours) {
+        const idx = i + j * G;
+        const h   = hm[idx];
+
+        const DIRS: [number, number][] = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+        for (const [di, dj] of DIRS) {
+          const ni = i + di, nj = j + dj;
+          if (ni < 0 || ni >= G || nj < 0 || nj >= G) continue;
+          // Never flow into phantom cells
+          if (shape === "jar") {
+            const { x: nwx, z: nwz } = normToWorld(shape, ni / (G - 1), nj / (G - 1));
+            if (nwx * nwx + nwz * nwz > jarR2) continue;
+          }
+          const nidx = ni + nj * G;
           const diff = h - hm[nidx];
           if (diff > maxSlope) {
             const transfer = (diff - maxSlope) * strength;
-            hm[idx] -= transfer;
+            hm[idx]  -= transfer;
             hm[nidx] += transfer;
           }
         }

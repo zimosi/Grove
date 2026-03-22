@@ -24,83 +24,6 @@ interface StepCustomizeProps {
 
 type Tab = "plants" | "decorations";
 
-// Category color dots
-const CATEGORY_COLORS: Record<string, string> = {
-  plant: "#6daa7a",
-  decoration: "#a89060",
-};
-
-function ItemCard({
-  item,
-  isSelected,
-  onSelect,
-}: {
-  item: CatalogItem;
-  isSelected: boolean;
-  onSelect: () => void;
-}) {
-  return (
-    <button
-      onClick={onSelect}
-      className={[
-        "group w-full text-left rounded-xl border transition-all duration-200",
-        "flex items-center gap-3.5 px-4 py-3.5",
-        isSelected
-          ? "border-grove-sage/50 bg-grove-sage/10 shadow-[0_0_0_1px_rgba(74,124,89,0.2)]"
-          : "border-grove-border bg-white/60 hover:border-grove-muted/30 hover:bg-white/80",
-      ].join(" ")}
-    >
-      {/* Icon or color swatch */}
-      <div
-        className="w-9 h-9 rounded-lg shrink-0 flex items-center justify-center overflow-hidden"
-        style={{
-          backgroundColor: item.color + "18",
-          border: `1px solid ${item.color}30`,
-        }}
-      >
-        {item.iconUrl ? (
-          <img
-            src={item.iconUrl}
-            alt={item.name}
-            className="w-8 h-8 object-contain"
-            draggable={false}
-          />
-        ) : (
-          <div className="w-4 h-4 rounded-full" style={{ backgroundColor: item.color }} />
-        )}
-      </div>
-
-      {/* Info */}
-      <div className="flex-1 min-w-0">
-        <div className={[
-          "text-[0.82rem] font-semibold leading-tight transition-colors",
-          isSelected ? "text-grove-text" : "text-grove-text/80 group-hover:text-grove-text",
-        ].join(" ")}>
-          {item.name}
-        </div>
-        {item.clusterCount && (
-          <div className="text-[0.62rem] grove-body mt-0.5">
-            Places as cluster of {item.clusterCount}
-          </div>
-        )}
-      </div>
-
-      {/* Price */}
-      <div className={[
-        "text-[0.8rem] tabular-nums font-medium shrink-0 transition-colors",
-        isSelected ? "text-grove-sage" : "text-grove-muted",
-      ].join(" ")}>
-        ${item.price}
-      </div>
-
-      {/* Active indicator */}
-      {isSelected && (
-        <div className="w-1.5 h-1.5 rounded-full bg-grove-sage shrink-0 animate-pulse" />
-      )}
-    </button>
-  );
-}
-
 const TERRAIN_PRESETS: { id: TerrainPreset; label: string; icon: string }[] = [
   { id: "flat",  label: "Flat",  icon: "▬" },
   { id: "ridge", label: "Ridge", icon: "▲" },
@@ -108,34 +31,73 @@ const TERRAIN_PRESETS: { id: TerrainPreset; label: string; icon: string }[] = [
   { id: "basin", label: "Basin", icon: "◡" },
 ];
 
-// Brush size presets: [world-unit radius, display label]
 const BRUSH_SIZES: [number, string][] = [
-  [0.06, "XS"],
-  [0.10, "S"],
-  [0.14, "M"],
-  [0.20, "L"],
-  [0.28, "XL"],
+  [0.06, "XS"], [0.10, "S"], [0.14, "M"], [0.20, "L"], [0.28, "XL"],
 ];
 
+// ── Tool mode config ────────────────────────────────────────────────────────
+const TOOLS: { mode: ToolMode; label: string; groupFoam?: boolean }[] = [
+  { mode: "place",  label: "Place"  },
+  { mode: "sculpt", label: "Sculpt" },
+  { mode: "foam",   label: "Foam"   },
+  { mode: "remove", label: "Remove" },
+];
+
+function ItemCard({ item, isSelected, onSelect }: { item: CatalogItem; isSelected: boolean; onSelect: () => void }) {
+  return (
+    <button
+      onClick={onSelect}
+      className="group w-full text-left rounded-xl flex items-center gap-3 px-3.5 py-3 transition-all duration-150"
+      style={{
+        border: isSelected ? "1px solid rgba(92,191,117,0.3)" : "1px solid rgba(255,255,255,0.06)",
+        background: isSelected ? "rgba(92,191,117,0.08)" : "rgba(255,255,255,0.03)",
+        boxShadow: isSelected ? "0 0 0 1px rgba(92,191,117,0.1)" : "none",
+      }}
+      onMouseEnter={e => { if (!isSelected) { (e.currentTarget.style.borderColor = "rgba(255,255,255,0.11)"); (e.currentTarget.style.background = "rgba(255,255,255,0.05)"); } }}
+      onMouseLeave={e => { if (!isSelected) { (e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)"); (e.currentTarget.style.background = "rgba(255,255,255,0.03)"); } }}
+    >
+      {/* Icon swatch */}
+      <div
+        className="w-8 h-8 rounded-lg shrink-0 flex items-center justify-center overflow-hidden"
+        style={{ background: item.color + "18", border: `1px solid ${item.color}28` }}
+      >
+        {item.iconUrl
+          ? <img src={item.iconUrl} alt={item.name} className="w-7 h-7 object-contain" draggable={false} />
+          : <div className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: item.color }} />
+        }
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <div className="text-[0.79rem] font-semibold leading-tight truncate transition-colors"
+          style={{ color: isSelected ? "#d8e8dc" : "rgba(216,232,220,0.65)" }}>
+          {item.name}
+        </div>
+        {item.clusterCount && (
+          <div className="text-[0.6rem] mt-0.5" style={{ color: "rgba(190,220,200,0.35)" }}>
+            Cluster of {item.clusterCount}
+          </div>
+        )}
+      </div>
+
+      <div className="text-[0.76rem] tabular-nums font-medium shrink-0"
+        style={{ color: isSelected ? "#5cbf75" : "rgba(216,232,220,0.3)" }}>
+        ${item.price}
+      </div>
+
+      {isSelected && (
+        <div className="w-1.5 h-1.5 rounded-full shrink-0 animate-pulse" style={{ background: "#5cbf75" }} />
+      )}
+    </button>
+  );
+}
+
 export default function StepCustomize({
-  selectedItemId,
-  toolMode,
-  placedCount,
-  totalPrice,
-  foamBrushSize,
-  onSelectItem,
-  onSetTool,
-  onFoamBrushChange,
-  onFoamUndo,
-  onUndo,
-  onBack,
-  onAddToCart,
-  onApplyPreset,
-  onSaveDesign,
-  isSaving = false,
+  selectedItemId, toolMode, placedCount, totalPrice, foamBrushSize,
+  onSelectItem, onSetTool, onFoamBrushChange, onFoamUndo, onUndo,
+  onBack, onAddToCart, onApplyPreset, onSaveDesign, isSaving = false,
 }: StepCustomizeProps) {
   const [tab, setTab] = useState<Tab>("plants");
-  const items = tab === "plants" ? PLANTS : DECORATIONS;
+  const items   = tab === "plants" ? PLANTS : DECORATIONS;
   const isSculpt = toolMode === "sculpt";
   const isFoam   = toolMode === "foam" || toolMode === "smooth" || toolMode === "paint";
   const hideItems = isSculpt || isFoam;
@@ -145,117 +107,101 @@ export default function StepCustomize({
       {/* Header */}
       <div className="mb-5">
         <p className="grove-step-label mb-2">Step 3 — Customize</p>
-        <h2 className="grove-heading text-[1.75rem]" style={{ fontFamily: "var(--font-display)" }}>
+        <h2 className="grove-heading text-[1.65rem]" style={{ fontFamily: "var(--font-display)" }}>
           Build your world
         </h2>
       </div>
 
-      {/* Tool toggle */}
-      <div className="flex gap-1.5 mb-4 p-1.5 bg-grove-bg/80 rounded-xl border border-grove-border">
-        {(["place", "sculpt", "foam", "remove"] as ToolMode[]).map((mode) => {
-          const isActive = toolMode === mode || (mode === "foam" && toolMode === "smooth");
+      {/* ── Tool toggle ── */}
+      <div className="flex gap-1 mb-4 p-1 rounded-xl" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
+        {TOOLS.map(({ mode, label }) => {
+          const isActive = toolMode === mode || (mode === "foam" && (toolMode === "smooth" || toolMode === "paint"));
           return (
             <button
               key={mode}
               onClick={() => onSetTool(mode)}
-              className={[
-                "flex-1 h-9 rounded-lg text-[0.62rem] tracking-[0.06em] uppercase font-semibold transition-all",
-                isActive
-                  ? mode === "remove"
-                    ? "bg-red-100 text-red-700 border border-red-200"
-                    : mode === "sculpt"
-                    ? "bg-amber-100 text-amber-800 border border-amber-200"
-                    : mode === "foam"
-                    ? "bg-sky-100 text-sky-800 border border-sky-200"
-                    : "bg-white text-grove-text border border-grove-border shadow-sm"
-                  : "text-grove-muted hover:text-grove-text border border-transparent",
-              ].join(" ")}
+              className="flex-1 h-8 rounded-lg text-[0.62rem] tracking-[0.06em] uppercase font-semibold transition-all duration-150"
+              style={isActive ? {
+                background: mode === "remove"
+                  ? "rgba(239,68,68,0.15)"
+                  : mode === "sculpt"
+                  ? "rgba(245,158,11,0.15)"
+                  : mode === "foam"
+                  ? "rgba(56,189,248,0.15)"
+                  : "rgba(255,255,255,0.1)",
+                color: mode === "remove"
+                  ? "#f87171"
+                  : mode === "sculpt"
+                  ? "#fbbf24"
+                  : mode === "foam"
+                  ? "#7dd3fc"
+                  : "#d8e8dc",
+                border: "1px solid " + (mode === "remove" ? "rgba(239,68,68,0.25)" : mode === "sculpt" ? "rgba(245,158,11,0.25)" : mode === "foam" ? "rgba(56,189,248,0.25)" : "rgba(255,255,255,0.12)"),
+              } : {
+                color: "rgba(216,232,220,0.35)",
+                border: "1px solid transparent",
+              }}
             >
-              {mode === "place" ? "Place" : mode === "sculpt" ? "⛰ Sculpt" : mode === "foam" ? "🫧 Foam" : "✕ Remove"}
+              {label}
             </button>
           );
         })}
       </div>
 
-      {/* Foam panel — shown in foam or smooth mode */}
-      {(toolMode === "foam" || toolMode === "smooth" || toolMode === "paint") && (
-        <div className="mb-4 p-3 rounded-xl border border-sky-200 bg-sky-50/80 space-y-3">
-          {/* Header */}
+      {/* ── Foam panel ── */}
+      {isFoam && (
+        <div className="mb-4 p-3.5 rounded-xl space-y-3"
+          style={{ background: "rgba(56,189,248,0.06)", border: "1px solid rgba(56,189,248,0.15)" }}>
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-sky-500" />
-            <span className="text-[0.68rem] font-semibold text-sky-800 tracking-[0.06em] uppercase">
+            <div className="w-2 h-2 rounded-full" style={{ background: "#7dd3fc" }} />
+            <span className="text-[0.62rem] font-bold tracking-[0.1em] uppercase" style={{ color: "rgba(125,211,252,0.7)" }}>
               Foam Tools
             </span>
           </div>
 
-          {/* Paint / Smooth / Color sub-mode toggle */}
-          <div className="flex gap-1.5 p-1 bg-white/70 rounded-lg border border-sky-200">
-            <button
-              onClick={() => onSetTool("foam")}
-              className={[
-                "flex-1 h-8 rounded-md text-[0.62rem] tracking-[0.06em] uppercase font-semibold transition-all",
-                toolMode === "foam"
-                  ? "bg-sky-500 text-white shadow-sm"
-                  : "text-sky-600 hover:bg-sky-100",
-              ].join(" ")}
-            >
-              🫧 Build
-            </button>
-            <button
-              onClick={() => onSetTool("smooth")}
-              className={[
-                "flex-1 h-8 rounded-md text-[0.62rem] tracking-[0.06em] uppercase font-semibold transition-all",
-                toolMode === "smooth"
-                  ? "bg-sky-500 text-white shadow-sm"
-                  : "text-sky-600 hover:bg-sky-100",
-              ].join(" ")}
-            >
-              ◌ Smooth
-            </button>
-            <button
-              onClick={() => onSetTool("paint")}
-              className={[
-                "flex-1 h-8 rounded-md text-[0.62rem] tracking-[0.06em] uppercase font-semibold transition-all",
-                toolMode === "paint"
-                  ? "bg-sky-500 text-white shadow-sm"
-                  : "text-sky-600 hover:bg-sky-100",
-              ].join(" ")}
-            >
-              🎨 Color
-            </button>
+          {/* Sub-mode */}
+          <div className="flex gap-1.5 p-1 rounded-lg" style={{ background: "rgba(0,0,0,0.2)", border: "1px solid rgba(56,189,248,0.12)" }}>
+            {([["foam", "🫧 Build"], ["smooth", "◌ Smooth"], ["paint", "🎨 Color"]] as [ToolMode, string][]).map(([m, lbl]) => (
+              <button key={m} onClick={() => onSetTool(m)}
+                className="flex-1 h-7 rounded-md text-[0.6rem] tracking-[0.04em] uppercase font-bold transition-all duration-150"
+                style={toolMode === m ? {
+                  background: "rgba(56,189,248,0.2)",
+                  color: "#7dd3fc",
+                  border: "1px solid rgba(56,189,248,0.3)",
+                } : {
+                  color: "rgba(125,211,252,0.45)",
+                  border: "1px solid transparent",
+                }}
+              >
+                {lbl}
+              </button>
+            ))}
           </div>
 
           {/* Brush size */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[0.6rem] tracking-[0.14em] uppercase text-sky-600 font-medium">
-                Brush size
-              </span>
-              <span className="text-[0.62rem] text-sky-800 tabular-nums font-medium">
+              <span className="text-[0.58rem] tracking-[0.12em] uppercase font-semibold" style={{ color: "rgba(125,211,252,0.5)" }}>Brush size</span>
+              <span className="text-[0.62rem] font-semibold" style={{ color: "rgba(125,211,252,0.7)" }}>
                 {BRUSH_SIZES.find(([v]) => v === foamBrushSize)?.[1] ?? "—"}
               </span>
             </div>
-            {/* Size presets as circles */}
-            <div className="flex items-center justify-between gap-1.5">
-              {BRUSH_SIZES.map(([size, label]) => {
+            <div className="flex items-center gap-1.5">
+              {BRUSH_SIZES.map(([size, label], idx) => {
                 const active = foamBrushSize === size;
                 return (
-                  <button
-                    key={label}
-                    onClick={() => onFoamBrushChange(size)}
-                    title={label}
-                    className={[
-                      "flex-1 flex flex-col items-center gap-1.5 py-2 rounded-xl border transition-all",
-                      active
-                        ? "border-sky-400 bg-sky-100"
-                        : "border-grove-border bg-white/60 hover:border-sky-300 hover:bg-sky-50",
-                    ].join(" ")}
-                  >
-                    <div
-                      className={["rounded-full transition-colors", active ? "bg-sky-500" : "bg-sky-300/50"].join(" ")}
-                      style={{ width: 6 + BRUSH_SIZES.findIndex(([v]) => v === size) * 4, height: 6 + BRUSH_SIZES.findIndex(([v]) => v === size) * 4 }}
-                    />
-                    <span className={["text-[0.58rem] font-semibold", active ? "text-sky-800" : "text-sky-600/70"].join(" ")}>
+                  <button key={label} onClick={() => onFoamBrushChange(size)}
+                    className="flex-1 flex flex-col items-center gap-1.5 py-2 rounded-xl transition-all duration-150"
+                    style={{
+                      border: active ? "1px solid rgba(56,189,248,0.35)" : "1px solid rgba(255,255,255,0.07)",
+                      background: active ? "rgba(56,189,248,0.12)" : "rgba(255,255,255,0.03)",
+                    }}>
+                    <div className="rounded-full transition-colors"
+                      style={{
+                        width: 6 + idx * 4, height: 6 + idx * 4,
+                        background: active ? "#7dd3fc" : "rgba(125,211,252,0.2)",
+                      }} />
+                    <span className="text-[0.56rem] font-bold" style={{ color: active ? "#7dd3fc" : "rgba(125,211,252,0.35)" }}>
                       {label}
                     </span>
                   </button>
@@ -264,59 +210,79 @@ export default function StepCustomize({
             </div>
           </div>
 
-          {/* Undo last stroke */}
-          <button
-            onClick={onFoamUndo}
-            className="w-full h-8 rounded-xl border border-sky-200 bg-white text-[0.65rem] tracking-[0.08em] uppercase font-medium text-sky-700 hover:bg-sky-50 hover:border-sky-300 transition-all"
+          <button onClick={onFoamUndo}
+            className="w-full h-7 rounded-lg text-[0.62rem] tracking-[0.06em] uppercase font-semibold transition-all duration-150"
+            style={{
+              border: "1px solid rgba(56,189,248,0.15)",
+              background: "rgba(0,0,0,0.2)",
+              color: "rgba(125,211,252,0.55)",
+            }}
+            onMouseEnter={e => { (e.currentTarget.style.background = "rgba(56,189,248,0.08)"); (e.currentTarget.style.color = "#7dd3fc"); }}
+            onMouseLeave={e => { (e.currentTarget.style.background = "rgba(0,0,0,0.2)"); (e.currentTarget.style.color = "rgba(125,211,252,0.55)"); }}
           >
             ↩ Undo stroke
           </button>
 
-          <p className="text-[0.6rem] text-sky-600/90 leading-relaxed">
+          <p className="text-[0.6rem] leading-relaxed" style={{ color: "rgba(125,211,252,0.45)" }}>
             {toolMode === "smooth"
-              ? "Hold & drag over bumpy areas to blend and flatten the surface."
+              ? "Hold & drag to blend and flatten bumpy areas."
               : toolMode === "paint"
-              ? "Hold & drag on foam to paint it with your substrate color."
-              : "Hold & drag on any surface to extrude foam. Rotate to build from any angle."}
+              ? "Hold & drag on foam to paint it with substrate color."
+              : "Hold & drag on any surface to extrude foam."}
           </p>
         </div>
       )}
 
-      {/* Terrain presets — only shown in sculpt mode */}
+      {/* ── Terrain presets ── */}
       {isSculpt && (
-        <div className="mb-4">
-          <div className="grove-step-label mb-2">Terrain preset</div>
+        <div className="mb-4 p-3.5 rounded-xl space-y-3"
+          style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.15)" }}>
+          <div className="flex items-center gap-2 mb-1">
+            <div className="w-2 h-2 rounded-full" style={{ background: "#fbbf24" }} />
+            <span className="text-[0.62rem] font-bold tracking-[0.1em] uppercase" style={{ color: "rgba(251,191,36,0.7)" }}>
+              Terrain Preset
+            </span>
+          </div>
           <div className="grid grid-cols-4 gap-1.5">
             {TERRAIN_PRESETS.map(({ id, label, icon }) => (
-              <button
-                key={id}
-                onClick={() => onApplyPreset(id)}
-                className="flex flex-col items-center gap-1 py-2.5 rounded-xl border border-grove-border bg-white/60 hover:border-grove-sage/40 hover:bg-grove-sage/10 transition-all text-grove-muted hover:text-grove-sage font-medium"
+              <button key={id} onClick={() => onApplyPreset(id)}
+                className="flex flex-col items-center gap-1 py-2.5 rounded-xl transition-all duration-150"
+                style={{
+                  border: "1px solid rgba(245,158,11,0.15)",
+                  background: "rgba(255,255,255,0.03)",
+                  color: "rgba(251,191,36,0.5)",
+                }}
+                onMouseEnter={e => { (e.currentTarget.style.background = "rgba(245,158,11,0.08)"); (e.currentTarget.style.color = "#fbbf24"); (e.currentTarget.style.borderColor = "rgba(245,158,11,0.3)"); }}
+                onMouseLeave={e => { (e.currentTarget.style.background = "rgba(255,255,255,0.03)"); (e.currentTarget.style.color = "rgba(251,191,36,0.5)"); (e.currentTarget.style.borderColor = "rgba(245,158,11,0.15)"); }}
               >
                 <span className="text-[0.9rem]">{icon}</span>
-                <span className="text-[0.6rem] tracking-[0.06em]">{label}</span>
+                <span className="text-[0.58rem] tracking-[0.06em] font-semibold uppercase">{label}</span>
               </button>
             ))}
           </div>
-          <p className="text-[0.62rem] grove-body mt-2">
-            Hold &amp; drag on terrain to raise. Presets reset the landscape shape.
+          <p className="text-[0.6rem] leading-relaxed" style={{ color: "rgba(251,191,36,0.4)" }}>
+            Hold &amp; drag on terrain to raise. Presets reset the landscape.
           </p>
         </div>
       )}
 
-      {/* Tab switch — hidden during sculpt/foam */}
+      {/* ── Tab switch ── */}
       {!hideItems && (
-        <div className="flex gap-2 mb-3">
+        <div className="flex gap-1.5 mb-3">
           {(["plants", "decorations"] as Tab[]).map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={[
-                "flex-1 h-9 rounded-xl text-[0.68rem] tracking-[0.1em] uppercase font-semibold transition-all",
-                tab === t
-                  ? "bg-grove-sage/15 text-grove-sage border border-grove-sage/40"
-                  : "text-grove-muted border border-grove-border hover:text-grove-text hover:border-grove-muted/40",
-              ].join(" ")}
+            <button key={t} onClick={() => setTab(t)}
+              className="flex-1 h-8 rounded-xl text-[0.66rem] tracking-[0.08em] uppercase font-semibold transition-all duration-150"
+              style={tab === t ? {
+                background: "rgba(92,191,117,0.12)",
+                color: "#5cbf75",
+                border: "1px solid rgba(92,191,117,0.25)",
+              } : {
+                color: "rgba(216,232,220,0.35)",
+                border: "1px solid rgba(255,255,255,0.06)",
+                background: "rgba(255,255,255,0.02)",
+              }}
+              onMouseEnter={e => { if (tab !== t) { (e.currentTarget.style.color = "rgba(216,232,220,0.6)"); (e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)"); } }}
+              onMouseLeave={e => { if (tab !== t) { (e.currentTarget.style.color = "rgba(216,232,220,0.35)"); (e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)"); } }}
             >
               {t === "plants" ? "🌿 Plants" : "🪨 Decor"}
             </button>
@@ -324,8 +290,8 @@ export default function StepCustomize({
         </div>
       )}
 
-      {/* Item list — hidden during sculpt */}
-      <div className={["flex-1 overflow-y-auto space-y-1.5 scrollbar-thin -mr-1 pr-1", hideItems ? "hidden" : ""].join(" ")}>
+      {/* ── Item list ── */}
+      <div className={["flex-1 overflow-y-auto space-y-1 scrollbar-thin -mr-1 pr-1", hideItems ? "hidden" : ""].join(" ")}>
         {items.map((item) => (
           <ItemCard
             key={item.id}
@@ -336,60 +302,69 @@ export default function StepCustomize({
         ))}
       </div>
 
-      {/* Spacer when no item list */}
       {hideItems && <div className="flex-1" />}
 
-      {/* Price strip + CTA */}
-      <div className="mt-4 pt-4 border-t border-grove-border">
-        {/* Price row */}
+      {/* ── Price + CTA ── */}
+      <div className="mt-4 pt-4" style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}>
         <div className="flex items-end justify-between mb-4">
           <div>
-            <p className="grove-step-label mb-1">Total price</p>
-            <div
-              className="grove-heading text-[2.4rem] leading-none"
-              style={{ fontFamily: "var(--font-display)" }}
-            >
+            <p className="grove-step-label mb-1">Total</p>
+            <div className="text-[2.2rem] font-light leading-none tracking-[-0.04em]"
+              style={{ fontFamily: "var(--font-display)", color: "#d8e8dc" }}>
               ${totalPrice.toFixed(2)}
             </div>
           </div>
-
           {placedCount > 0 && (
-            <div className="text-right pb-1">
-              <div className="text-[0.68rem] grove-body">
+            <div className="text-right pb-0.5">
+              <div className="text-[0.66rem]" style={{ color: "rgba(216,232,220,0.35)" }}>
                 {placedCount} item{placedCount !== 1 ? "s" : ""}
               </div>
-              <button
-                onClick={onUndo}
-                className="text-[0.65rem] text-grove-sage font-medium hover:underline transition-colors mt-0.5 underline-offset-2"
-              >
+              <button onClick={onUndo}
+                className="text-[0.64rem] font-medium hover:underline transition-colors mt-0.5 underline-offset-2"
+                style={{ color: "#5cbf75" }}>
                 Undo last
               </button>
             </div>
           )}
         </div>
 
-        {/* Add to cart */}
-        <button
-          onClick={onAddToCart}
-          className="w-full h-13 rounded-2xl bg-grove-sage text-white text-[0.8rem] tracking-[0.1em] uppercase font-semibold hover:bg-grove-moss shadow-md active:scale-[0.98] transition-all duration-300 mb-2.5"
+        <button onClick={onAddToCart}
+          className="w-full h-12 rounded-2xl text-[0.78rem] tracking-[0.08em] uppercase font-bold transition-all duration-200 mb-2 active:scale-[0.98]"
+          style={{
+            background: "linear-gradient(135deg, #5cbf75 0%, #3d9156 100%)",
+            color: "#fff",
+            boxShadow: "0 4px 24px rgba(92,191,117,0.3)",
+          }}
+          onMouseEnter={e => (e.currentTarget.style.boxShadow = "0 6px 32px rgba(92,191,117,0.45)")}
+          onMouseLeave={e => (e.currentTarget.style.boxShadow = "0 4px 24px rgba(92,191,117,0.3)")}
         >
           Order This Terrarium
         </button>
 
-        {/* Save design */}
         {onSaveDesign && (
-          <button
-            onClick={onSaveDesign}
-            disabled={isSaving}
-            className="w-full h-10 rounded-xl border border-grove-sage/40 text-grove-sage text-[0.72rem] tracking-[0.08em] uppercase font-medium hover:bg-grove-sage/10 hover:border-grove-sage/60 transition-all disabled:opacity-50 mb-2.5"
+          <button onClick={onSaveDesign} disabled={isSaving}
+            className="w-full h-10 rounded-xl text-[0.71rem] tracking-[0.06em] uppercase font-semibold transition-all duration-150 mb-2 disabled:opacity-40"
+            style={{
+              border: "1px solid rgba(92,191,117,0.25)",
+              color: "#5cbf75",
+              background: "rgba(92,191,117,0.06)",
+            }}
+            onMouseEnter={e => { if (!isSaving) { (e.currentTarget.style.background = "rgba(92,191,117,0.12)"); (e.currentTarget.style.borderColor = "rgba(92,191,117,0.4)"); } }}
+            onMouseLeave={e => { (e.currentTarget.style.background = "rgba(92,191,117,0.06)"); (e.currentTarget.style.borderColor = "rgba(92,191,117,0.25)"); }}
           >
             {isSaving ? "Saving…" : "Save Design"}
           </button>
         )}
 
-        <button
-          onClick={onBack}
-          className="w-full h-10 rounded-xl border border-grove-border text-grove-muted text-[0.7rem] tracking-[0.1em] uppercase font-medium hover:border-grove-muted/40 hover:text-grove-text transition-all"
+        <button onClick={onBack}
+          className="w-full h-9 rounded-xl text-[0.69rem] tracking-[0.08em] uppercase font-medium transition-all duration-150"
+          style={{
+            border: "1px solid rgba(255,255,255,0.07)",
+            color: "rgba(216,232,220,0.3)",
+            background: "transparent",
+          }}
+          onMouseEnter={e => { (e.currentTarget.style.borderColor = "rgba(255,255,255,0.13)"); (e.currentTarget.style.color = "rgba(216,232,220,0.6)"); }}
+          onMouseLeave={e => { (e.currentTarget.style.borderColor = "rgba(255,255,255,0.07)"); (e.currentTarget.style.color = "rgba(216,232,220,0.3)"); }}
         >
           ← Change Base
         </button>

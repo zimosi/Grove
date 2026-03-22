@@ -8,6 +8,7 @@ import StepCustomize from "./StepCustomize";
 import type { ContainerShape, SubstrateType, PlacedItem, ToolMode } from "@/types";
 import { getCatalogItem } from "@/data/catalog";
 import type { TerrainPreset } from "@/lib/heightmap";
+import { createHeightmap } from "@/lib/heightmap";
 import { useAuth } from "@/context/AuthContext";
 import AuthModal from "@/components/auth/AuthModal";
 import { getSupabase } from "@/lib/supabase";
@@ -40,6 +41,12 @@ const HINTS: Record<number, string> = {
   3: "Select an item then click to place · Use Sculpt mode to shape terrain",
 };
 
+// Module-level slot: loadInitialState runs synchronously during useReducer init,
+// before any hooks or effects fire. We capture heightmap data here so heightmapRef
+// can be initialised with the correct array before TerrariumCanvas ever mounts.
+let _pendingHeightmap: number[] | null = null;
+let _hadPendingHeightmap = false;
+
 function loadInitialState() {
   if (typeof window === "undefined") return initialState;
   try {
@@ -47,7 +54,7 @@ function loadInitialState() {
     if (raw) {
       sessionStorage.removeItem("grove_load_state");
       const parsed = JSON.parse(raw);
-      // Stash foam/paint fields separately so we can restore them after FoamMesh mounts
+      // Stash foam/paint so we can restore after FoamMesh mounts
       if (parsed.foamField) {
         sessionStorage.setItem("grove_load_foam", JSON.stringify(parsed.foamField));
         delete parsed.foamField;
@@ -55,6 +62,12 @@ function loadInitialState() {
       if (parsed.paintField) {
         sessionStorage.setItem("grove_load_paint", JSON.stringify(parsed.paintField));
         delete parsed.paintField;
+      }
+      // Heightmap: capture directly into module variable — no sessionStorage round-trip
+      if (parsed.heightmapField) {
+        _pendingHeightmap = parsed.heightmapField as number[];
+        _hadPendingHeightmap = true;
+        delete parsed.heightmapField;
       }
       return parsed;
     }
@@ -71,28 +84,47 @@ export default function BuilderWizard() {
   const [foamBrushSize, setFoamBrushSize] = useState(0.13);
   const [foamUndoTrigger, setFoamUndoTrigger] = useState(0);
   const handleFoamUndo = useCallback(() => setFoamUndoTrigger((n) => n + 1), []);
+  const [terrainUpdateTrigger, setTerrainUpdateTrigger] = useState(0);
 
   const { user } = useAuth();
   const [authOpen,     setAuthOpen]     = useState(false);
   const [isSaving,     setIsSaving]     = useState(false);
   const [saveMessage,  setSaveMessage]  = useState<string | null>(null);
   const foamRef = useRef<FoamHandle | null>(null);
+  // Consume _pendingHeightmap synchronously — useReducer (which calls loadInitialState)
+  // runs before useRef, so _pendingHeightmap is already set when this line executes.
+  const heightmapRef = useRef<Float32Array>(
+    _pendingHeightmap ? new Float32Array(_pendingHeightmap) : createHeightmap()
+  );
+  const _hadHeightmap = _hadPendingHeightmap;
+  _pendingHeightmap = null;     // clear so it isn't reused on hot-reload
+  _hadPendingHeightmap = false;
+
+  // When a saved design is loaded, fire terrainUpdateTrigger once after the canvas
+  // has had time to mount, so TerrainMesh picks up the pre-populated heightmapRef.
+  useEffect(() => {
+    if (!_hadHeightmap) return;
+    // Poll until TerrariumCanvas is mounted (dynamic import may take a moment)
+    const t = setTimeout(() => setTerrainUpdateTrigger((n) => n + 1), 300);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Survey state
   const [surveyOpen,    setSurveyOpen]    = useState(false);
   const [surveyTrigger, setSurveyTrigger] = useState<"order_click" | "save_design">("order_click");
   const [surveyDesignId, setSurveyDesignId] = useState<string | null>(null);
 
-  // Restore foam + paint fields after FoamMesh mounts (when loading a saved design)
+  // Restore foam + paint after FoamMesh mounts (canvas loads asynchronously via dynamic()).
+  // Heightmap is already restored synchronously into heightmapRef above — no effect needed.
   useEffect(() => {
     const rawFoam  = sessionStorage.getItem("grove_load_foam");
     const rawPaint = sessionStorage.getItem("grove_load_paint");
     if (!rawFoam && !rawPaint) return;
-    // Poll until foamRef is ready (canvas loads asynchronously)
     const interval = setInterval(() => {
       if (!foamRef.current) return;
       try {
-        if (rawFoam)  { foamRef.current.setField(JSON.parse(rawFoam));   sessionStorage.removeItem("grove_load_foam"); }
+        if (rawFoam)  { foamRef.current.setField(JSON.parse(rawFoam));      sessionStorage.removeItem("grove_load_foam"); }
         if (rawPaint) { foamRef.current.setPaintField(JSON.parse(rawPaint)); sessionStorage.removeItem("grove_load_paint"); }
       } catch { /* ignore */ }
       clearInterval(interval);
@@ -115,12 +147,13 @@ export default function BuilderWizard() {
     try {
       const sb = getSupabase();
       if (!sb) throw new Error("not configured");
-      const foamField  = foamRef.current ? Array.from(foamRef.current.getField())      : null;
-      const paintField = foamRef.current ? Array.from(foamRef.current.getPaintField()) : null;
+      const foamField      = foamRef.current ? Array.from(foamRef.current.getField())      : null;
+      const paintField     = foamRef.current ? Array.from(foamRef.current.getPaintField()) : null;
+      const heightmapField = Array.from(heightmapRef.current);
       const { data, error } = await sb.from("terrariums").insert({
         user_id: user.id,
         name: `Terrarium — ${new Date().toLocaleDateString()}`,
-        state: { ...state, foamField, paintField } as unknown as Record<string, unknown>,
+        state: { ...state, foamField, paintField, heightmapField } as unknown as Record<string, unknown>,
       }).select("id").single();
       if (error) throw error;
       setSaveMessage("Design saved!");
@@ -199,40 +232,70 @@ export default function BuilderWizard() {
   const isStep2Complete = state.substrate !== null;
   const showCanvas = state.step >= 1 && state.container !== null;
 
+  // Dark glass pill style for canvas overlays
+  const pillStyle = (color: string) => ({
+    background: "rgba(0,0,0,0.55)",
+    backdropFilter: "blur(16px)",
+    WebkitBackdropFilter: "blur(16px)",
+    border: `1px solid ${color}`,
+    boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
+  });
+
   return (
-    <div className="h-[calc(100vh-3.5rem)] flex overflow-hidden bg-grove-bg">
-      {/* Left sidebar — wizard steps */}
-      <aside className="w-[360px] shrink-0 flex flex-col bg-grove-panel border-r border-grove-border shadow-sm overflow-hidden">
-        {/* Section label */}
-        <div className="px-8 pt-5 pb-4 border-b border-grove-border">
-          <p className="text-[0.65rem] tracking-[0.2em] uppercase text-grove-muted font-medium">
+    <div className="h-[calc(100vh-3.5rem)] flex overflow-hidden" style={{ background: "#0b0f0d" }}>
+      {/* Left sidebar */}
+      <aside className="w-[340px] shrink-0 flex flex-col overflow-hidden"
+        style={{
+          background: "rgba(17,25,20,0.95)",
+          backdropFilter: "blur(24px)",
+          WebkitBackdropFilter: "blur(24px)",
+          borderRight: "1px solid rgba(255,255,255,0.07)",
+        }}
+      >
+        {/* Header */}
+        <div className="px-7 pt-5 pb-4" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+          <p className="text-[0.58rem] tracking-[0.25em] uppercase font-semibold" style={{ color: "rgba(92,191,117,0.5)" }}>
             Terrarium Builder
           </p>
         </div>
 
         {/* Step progress */}
-        <div className="px-8 py-5 border-b border-grove-border">
-          <div className="flex items-center gap-3">
+        <div className="px-7 py-4" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+          <div className="flex items-center gap-2">
             {[1, 2, 3].map((s) => (
-              <div key={s} className="flex items-center gap-3">
-                <div
-                  className={[
-                    "w-2.5 h-2.5 rounded-full transition-all duration-300",
-                    state.step === s
-                      ? "bg-grove-sage scale-100 ring-2 ring-grove-sage/30"
-                      : state.step > s
-                      ? "bg-grove-sage/60"
-                      : "bg-grove-muted/20",
-                  ].join(" ")}
-                />
-                {s < 3 && <div className="w-10 h-px bg-grove-border" />}
+              <div key={s} className="flex items-center gap-2">
+                <div className="relative flex items-center justify-center transition-all duration-300">
+                  {state.step === s ? (
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center text-[0.6rem] font-bold"
+                      style={{ background: "rgba(92,191,117,0.2)", border: "1.5px solid rgba(92,191,117,0.6)", color: "#5cbf75", boxShadow: "0 0 12px rgba(92,191,117,0.2)" }}>
+                      {s}
+                    </div>
+                  ) : state.step > s ? (
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center"
+                      style={{ background: "rgba(92,191,117,0.12)", border: "1.5px solid rgba(92,191,117,0.3)" }}>
+                      <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
+                        <path d="M2 6L5 9L10 3" stroke="#5cbf75" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </div>
+                  ) : (
+                    <div className="w-6 h-6 rounded-full"
+                      style={{ border: "1.5px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.03)" }} />
+                  )}
+                </div>
+                {s < 3 && (
+                  <div className="w-8 h-px rounded-full"
+                    style={{ background: state.step > s ? "rgba(92,191,117,0.3)" : "rgba(255,255,255,0.07)" }} />
+                )}
               </div>
             ))}
+            <span className="ml-2 text-[0.65rem] font-medium" style={{ color: "rgba(216,232,220,0.35)" }}>
+              {state.step === 1 ? "Container" : state.step === 2 ? "Base Material" : "Customize"}
+            </span>
           </div>
         </div>
 
         {/* Step content */}
-        <div className="flex-1 overflow-y-auto px-8 py-6">
+        <div className="flex-1 overflow-y-auto px-7 py-6 scrollbar-thin">
           {state.step === 1 && (
             <StepContainer
               selected={state.container}
@@ -314,6 +377,8 @@ export default function BuilderWizard() {
             foamBrushSize={foamBrushSize}
             foamUndoTrigger={foamUndoTrigger}
             foamRef={foamRef}
+            heightmapRef={heightmapRef}
+            terrainUpdateTrigger={terrainUpdateTrigger}
           />
         ) : (
           /* Step 1 before any container selected */

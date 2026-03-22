@@ -134,6 +134,44 @@ function createTankGeometry(): THREE.BufferGeometry {
   return geo;
 }
 
+// ── Jar: radial wall strip geometry ───────────────────────────────────────
+// N quads around the circle; bottom vertex fixed at -0.002, top follows terrain.
+// Unlike a uniform cylinder, each segment is updated independently so the fill
+// only rises where the terrain actually touches the wall.
+function makeJarWallGeo(): THREE.BufferGeometry {
+  const N = JAR_ANGULAR;
+  const positions = new Float32Array(N * 2 * 3);
+  const uvs       = new Float32Array(N * 2 * 2);
+  const indices: number[] = [];
+
+  for (let ai = 0; ai < N; ai++) {
+    const a = (ai / N) * Math.PI * 2;
+    const x = JAR_FILL_R * Math.cos(a);
+    const z = JAR_FILL_R * Math.sin(a);
+    const u = ai / N;
+    // bottom vertex
+    positions[(2 * ai) * 3]     = x;
+    positions[(2 * ai) * 3 + 1] = BASE_HEIGHT;
+    positions[(2 * ai) * 3 + 2] = z;
+    uvs[(2 * ai) * 2]     = u; uvs[(2 * ai) * 2 + 1]     = 0;
+    // top vertex
+    positions[(2 * ai + 1) * 3]     = x;
+    positions[(2 * ai + 1) * 3 + 1] = BASE_HEIGHT;
+    positions[(2 * ai + 1) * 3 + 2] = z;
+    uvs[(2 * ai + 1) * 2]     = u; uvs[(2 * ai + 1) * 2 + 1] = 1;
+
+    const b0 = 2 * ai,            t0 = 2 * ai + 1;
+    const b1 = 2 * ((ai + 1) % N), t1 = 2 * ((ai + 1) % N) + 1;
+    indices.push(b0, b1, t0, b1, t1, t0);
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  geo.setAttribute("uv",       new THREE.BufferAttribute(uvs, 2));
+  geo.setIndex(indices);
+  return geo;
+}
+
 // ── Wall fill strip geometry ──────────────────────────────────────────────
 // G bottom+top vertex pairs; vertex positions are updated in updateMesh.
 function makeWallStripGeo(G: number): THREE.BufferGeometry {
@@ -195,7 +233,6 @@ export default function TerrainMesh({
   foamBrushRefs,
 }: TerrainMeshProps) {
   const meshRef  = useRef<THREE.Mesh>(null);
-  const jarFillRef = useRef<THREE.Mesh>(null);
   const holdingRef  = useRef(false);
   const brushPosRef = useRef(new THREE.Vector3());
   const [brushVisible, setBrushVisible] = useState(false);
@@ -222,10 +259,10 @@ export default function TerrainMesh({
     };
   }, [shape]);
 
-  // Jar: unit-height cylinder, scaled dynamically via jarFillRef
-  const jarFillGeo = useMemo(() => {
+  // Jar: radial wall strip, each segment independently tracks terrain height
+  const jarWallGeo = useMemo(() => {
     if (shape !== "jar") return null;
-    return new THREE.CylinderGeometry(JAR_FILL_R, JAR_FILL_R, 1, 48);
+    return makeJarWallGeo();
   }, [shape]);
 
   // ── Material ──────────────────────────────────────────────────────────
@@ -334,25 +371,27 @@ export default function TerrainMesh({
       tankWallGeos.right.computeVertexNormals();
     }
 
-    // ── Jar: uniform cylinder fill — sample the actual circular perimeter ──
-    // Previously used rectangular grid edges which are outside the circle,
-    // causing the fill to jump whenever spreading reached those cells.
-    if (shape === "jar") {
-      const fill = jarFillRef.current;
-      if (fill) {
-        let maxEdgeH = BASE_HEIGHT;
-        for (let ai = 0; ai < JAR_ANGULAR; ai++) {
-          const a = (ai / JAR_ANGULAR) * Math.PI * 2;
-          maxEdgeH = Math.max(
-            maxEdgeH,
-            getHeightAt(hm, "jar", JAR_R * Math.cos(a), JAR_R * Math.sin(a))
-          );
-        }
-        fill.scale.y = maxEdgeH;
-        fill.position.y = yBase + maxEdgeH * 0.5;
+    // ── Jar: radial wall strip — each segment follows its own terrain height ──
+    // Each angular segment independently tracks terrain height at that angle,
+    // so only the portion of the wall where terrain is high rises up.
+    if (shape === "jar" && jarWallGeo) {
+      const wPos = jarWallGeo.attributes.position as THREE.BufferAttribute;
+      const N = JAR_ANGULAR;
+      // Sample just inside JAR_R so worldToNorm doesn't return oob.
+      // JAR_FILL_R (0.476) > JAR_R (0.475) which would always return BASE_HEIGHT.
+      const sampleR = JAR_R * 0.998;
+      for (let ai = 0; ai < N; ai++) {
+        const a = (ai / N) * Math.PI * 2;
+        const wx = sampleR * Math.cos(a);
+        const wz = sampleR * Math.sin(a);
+        const h = getHeightAt(hm, "jar", wx, wz);
+        wPos.setY(2 * ai,     -0.002); // bottom — below floor to hide seam
+        wPos.setY(2 * ai + 1, h);      // top — exactly at terrain height
       }
+      wPos.needsUpdate = true;
+      jarWallGeo.computeVertexNormals();
     }
-  }, [geometry, shape, heightmapRef, yBase, tankWallGeos]);
+  }, [geometry, shape, heightmapRef, yBase, tankWallGeos, jarWallGeo]);
 
   // ── Apply preset ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -466,14 +505,12 @@ export default function TerrainMesh({
           <mesh geometry={tankWallGeos.right} material={material} position={[0, yBase, 0]} receiveShadow />
         </>
       )}
-      {/* Jar: cylindrical fill, dynamically scaled to border max height */}
-      {shape === "jar" && jarFillGeo && (
+      {/* Jar: radial wall strip — each segment independently tracks terrain height */}
+      {shape === "jar" && jarWallGeo && (
         <mesh
-          ref={jarFillRef}
-          geometry={jarFillGeo}
+          geometry={jarWallGeo}
           material={material}
-          position={[0, yBase + BASE_HEIGHT / 2, 0]}
-          scale={[1, BASE_HEIGHT, 1]}
+          position={[0, yBase, 0]}
           receiveShadow
         />
       )}

@@ -90,6 +90,10 @@ interface TerrariumCanvasProps {
   foamBrushSize?: number;
   foamUndoTrigger?: number;
   foamRef?: React.RefObject<FoamHandle | null>;
+  /** External heightmap ref — when provided, BuilderWizard owns the data for save/restore */
+  heightmapRef?: React.RefObject<Float32Array>;
+  /** Increment to force TerrainMesh to re-read the heightmap (e.g. after load restore) */
+  terrainUpdateTrigger?: number;
 }
 
 function SceneContent({
@@ -104,9 +108,13 @@ function SceneContent({
   foamBrushSize = 0.13,
   foamUndoTrigger = 0,
   foamRef,
+  heightmapRef: externalHeightmapRef,
+  terrainUpdateTrigger = 0,
 }: TerrariumCanvasProps & { terrainPreset: TerrainPreset | null; presetTrigger: number }) {
-  // Heightmap lives here — 3D state, not React state
-  const heightmapRef = useRef<Float32Array>(createHeightmap());
+  // Use external ref if provided (so BuilderWizard can read/write for save/restore),
+  // otherwise fall back to a local ref.
+  const localHeightmapRef = useRef<Float32Array>(createHeightmap());
+  const heightmapRef = externalHeightmapRef ?? localHeightmapRef;
 
   // Shared foam brush refs, updated by TerrainMesh or FoamMesh depending on what ray hits
   const foamBrushRefs: FoamBrushRefs = {
@@ -115,10 +123,13 @@ function SceneContent({
     holding: useRef(false),
   };
 
-  // Reset heightmap when container shape changes
+  // Reset heightmap when container shape CHANGES (skip on first mount so
+  // a restored heightmap is not overwritten before TerrainMesh renders it).
   const prevShapeRef = useRef<ContainerShape | null>(null);
   if (state.container && state.container !== prevShapeRef.current) {
-    heightmapRef.current = createHeightmap();
+    if (prevShapeRef.current !== null) {
+      heightmapRef.current = createHeightmap();
+    }
     prevShapeRef.current = state.container;
   }
 
@@ -171,7 +182,7 @@ function SceneContent({
                 shape={state.container}
                 substrate={state.substrate}
                 heightmapRef={heightmapRef}
-                updateTrigger={0}
+                updateTrigger={terrainUpdateTrigger}
                 toolMode={state.toolMode}
                 selectedItemId={state.selectedItemId}
                 onPlace={onPlace}
@@ -235,6 +246,8 @@ export default function TerrariumCanvas({
   foamBrushSize = 0.13,
   foamUndoTrigger = 0,
   foamRef,
+  heightmapRef,
+  terrainUpdateTrigger = 0,
 }: TerrariumCanvasProps) {
   return (
     <Canvas
@@ -263,6 +276,8 @@ export default function TerrariumCanvas({
         foamBrushSize={foamBrushSize}
         foamUndoTrigger={foamUndoTrigger}
         foamRef={foamRef}
+        heightmapRef={heightmapRef}
+        terrainUpdateTrigger={terrainUpdateTrigger}
       />
     </Canvas>
   );

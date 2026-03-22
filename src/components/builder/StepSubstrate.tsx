@@ -14,7 +14,6 @@ const OPTIONS: {
   tagline: string;
   description: string;
   swatch: string;
-  swatchAlt: string;
   price: number;
 }[] = [
   {
@@ -22,8 +21,7 @@ const OPTIONS: {
     name: "Desert Sand",
     tagline: "Warm & arid",
     description: "Golden quartz sand — perfect for succulents, cacti, and minimalist desert scapes.",
-    swatch: "linear-gradient(135deg, #d4a96a 0%, #e8c88a 50%, #c89050 100%)",
-    swatchAlt: "#c8965a",
+    swatch: "linear-gradient(135deg, #c8924a 0%, #e8b870 50%, #b07840 100%)",
     price: 3.99,
   },
   {
@@ -31,8 +29,7 @@ const OPTIONS: {
     name: "Rich Soil",
     tagline: "Dark & lush",
     description: "Nutrient-dense tropical soil — ideal for ferns, moss, and dense green environments.",
-    swatch: "linear-gradient(135deg, #3a2010 0%, #5a3820 50%, #2e180c 100%)",
-    swatchAlt: "#4a3020",
+    swatch: "linear-gradient(135deg, #2e1608 0%, #4a2810 50%, #241004 100%)",
     price: 3.99,
   },
 ];
@@ -40,18 +37,16 @@ const OPTIONS: {
 export default function StepSubstrate({ selected, onSelect, onNext, onBack }: StepSubstrateProps) {
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
       <div className="mb-8">
         <p className="grove-step-label mb-3">Step 2 — Base Material</p>
-        <h2 className="grove-heading text-[1.9rem] mb-3" style={{ fontFamily: "var(--font-display)" }}>
+        <h2 className="grove-heading text-[1.85rem] mb-3" style={{ fontFamily: "var(--font-display)" }}>
           Choose your<br />foundation
         </h2>
-        <p className="grove-body text-[0.85rem]">
+        <p className="grove-body text-[0.82rem]">
           The substrate defines the mood of your world. Choose the base that fits your vision.
         </p>
       </div>
 
-      {/* Substrate cards */}
       <div className="flex flex-col gap-4 flex-1">
         {OPTIONS.map((opt) => {
           const isActive = selected === opt.type;
@@ -59,30 +54,32 @@ export default function StepSubstrate({ selected, onSelect, onNext, onBack }: St
             <button
               key={opt.type}
               onClick={() => onSelect(opt.type)}
-              className={[
-                "group w-full text-left rounded-2xl border transition-all duration-300 overflow-hidden relative",
-                isActive
-                  ? "border-grove-sage/50 shadow-[0_0_0_1px_rgba(74,124,89,0.2)]"
-                  : "border-grove-border hover:border-grove-muted/30",
-              ].join(" ")}
+              className="group w-full text-left rounded-2xl overflow-hidden relative transition-all duration-200"
+              style={{
+                border: isActive ? "1px solid rgba(92,191,117,0.35)" : "1px solid rgba(255,255,255,0.07)",
+                boxShadow: isActive ? "0 0 0 1px rgba(92,191,117,0.12), 0 0 28px rgba(92,191,117,0.05)" : "none",
+              }}
+              onMouseEnter={e => { if (!isActive) (e.currentTarget.style.borderColor = "rgba(255,255,255,0.13)"); }}
+              onMouseLeave={e => { if (!isActive) (e.currentTarget.style.borderColor = "rgba(255,255,255,0.07)"); }}
             >
-              {/* Large texture swatch at top */}
-              <div
-                className="h-20 w-full relative"
-                style={{ background: opt.swatch }}
-              >
-                {/* Subtle noise overlay */}
-                <div className="absolute inset-0 opacity-30"
+              {/* Texture swatch */}
+              <div className="h-[4.5rem] w-full relative" style={{ background: opt.swatch }}>
+                <div className="absolute inset-0"
                   style={{
                     backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E")`,
                     backgroundSize: "120px",
+                    opacity: 0.25,
+                    mixBlendMode: "overlay",
                   }}
                 />
-                {/* Selection checkmark */}
+                {/* Dark fade at bottom */}
+                <div className="absolute bottom-0 left-0 right-0 h-6"
+                  style={{ background: "linear-gradient(to bottom, transparent, rgba(0,0,0,0.5))" }} />
                 {isActive && (
-                  <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-grove-sage flex items-center justify-center shadow-md">
-                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                      <path d="M2 6L5 9L10 3" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                  <div className="absolute top-2.5 right-2.5 w-5 h-5 rounded-full flex items-center justify-center shadow-lg"
+                    style={{ background: "#5cbf75" }}>
+                    <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
+                      <path d="M2 6L5 9L10 3" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
                   </div>
                 )}
@@ -90,30 +87,23 @@ export default function StepSubstrate({ selected, onSelect, onNext, onBack }: St
 
               {/* Content */}
               <div
-                className={[
-                  "px-5 py-4 transition-colors",
-                  isActive ? "bg-grove-sage/10" : "bg-white/60 group-hover:bg-white/80",
-                ].join(" ")}
+                className="px-4 py-3.5 transition-colors duration-150"
+                style={{ background: isActive ? "rgba(92,191,117,0.07)" : "rgba(255,255,255,0.03)" }}
               >
-                <div className="flex items-start justify-between mb-1.5">
+                <div className="flex items-start justify-between mb-1">
                   <div>
-                    <div
-                      className={[
-                        "text-[0.95rem] font-semibold transition-colors",
-                        isActive ? "text-grove-text" : "text-grove-text/80",
-                      ].join(" ")}
-                    >
+                    <div className="text-[0.88rem] font-semibold mb-0.5" style={{ color: isActive ? "#d8e8dc" : "rgba(216,232,220,0.7)" }}>
                       {opt.name}
                     </div>
-                    <div className="text-[0.65rem] tracking-[0.12em] uppercase text-grove-muted mt-0.5 font-medium">
+                    <div className="text-[0.6rem] tracking-[0.14em] uppercase font-semibold" style={{ color: isActive ? "rgba(92,191,117,0.7)" : "rgba(190,220,200,0.35)" }}>
                       {opt.tagline}
                     </div>
                   </div>
-                  <span className="text-[0.82rem] text-grove-sage font-medium tabular-nums mt-0.5">
+                  <span className="text-[0.78rem] font-medium tabular-nums mt-0.5" style={{ color: isActive ? "#5cbf75" : "rgba(216,232,220,0.3)" }}>
                     +${opt.price}
                   </span>
                 </div>
-                <p className="text-[0.75rem] grove-body leading-snug">
+                <p className="text-[0.72rem] leading-snug mt-1" style={{ color: "rgba(190,220,200,0.65)" }}>
                   {opt.description}
                 </p>
               </div>
@@ -122,24 +112,34 @@ export default function StepSubstrate({ selected, onSelect, onNext, onBack }: St
         })}
       </div>
 
-      {/* CTAs */}
       <div className="mt-6 flex gap-2.5">
         <button
           onClick={onBack}
-          className="h-13 px-5 rounded-2xl border border-grove-border text-[0.75rem] tracking-[0.1em] uppercase font-medium text-grove-muted hover:border-grove-muted/40 hover:text-grove-text transition-all active:scale-[0.97]"
+          className="h-11 px-5 rounded-xl text-[0.73rem] tracking-[0.06em] uppercase font-medium transition-all duration-150 active:scale-[0.97]"
+          style={{
+            border: "1px solid rgba(255,255,255,0.09)",
+            color: "rgba(216,232,220,0.4)",
+            background: "rgba(255,255,255,0.03)",
+          }}
+          onMouseEnter={e => { (e.currentTarget.style.borderColor = "rgba(255,255,255,0.16)"); (e.currentTarget.style.color = "rgba(216,232,220,0.7)"); }}
+          onMouseLeave={e => { (e.currentTarget.style.borderColor = "rgba(255,255,255,0.09)"); (e.currentTarget.style.color = "rgba(216,232,220,0.4)"); }}
         >
           ← Back
         </button>
         <button
           onClick={onNext}
           disabled={!selected}
-          className={[
-            "flex-1 h-13 rounded-2xl text-[0.8rem] tracking-[0.1em] uppercase font-semibold",
-            "transition-all duration-300",
-            selected
-              ? "bg-grove-sage text-white hover:bg-grove-moss shadow-md active:scale-[0.98]"
-              : "bg-grove-bg text-grove-muted/60 cursor-not-allowed border border-grove-border",
-          ].join(" ")}
+          className="flex-1 h-11 rounded-xl text-[0.75rem] tracking-[0.08em] uppercase font-semibold transition-all duration-200 active:scale-[0.98]"
+          style={selected ? {
+            background: "linear-gradient(135deg, #5cbf75 0%, #3d9156 100%)",
+            color: "#fff",
+            boxShadow: "0 4px 20px rgba(92,191,117,0.28)",
+          } : {
+            background: "rgba(255,255,255,0.04)",
+            color: "rgba(216,232,220,0.22)",
+            border: "1px solid rgba(255,255,255,0.06)",
+            cursor: "not-allowed",
+          }}
         >
           {selected ? "Add Plants →" : "Select a base first"}
         </button>
